@@ -1,0 +1,10 @@
+grpc:
+  port: 9090
+  timeout: 5s
+log_level: 0
+log_handler: text
+access_token_live_time: 1h
+refresh_token_live_time: 720h
+db_max_open_conns: 10
+db_max_idle_conns: 5
+db_conn_max_lifetime: 1h
