@@ -25,6 +25,9 @@ type UserRepoInterface interface {
 	ChangeEmail(ctx context.Context, userID int64, email string) (*userservice.UserPrivateModel, error)
 	ChangePassword(ctx context.Context, userID int64, password string) (*userservice.UserPrivateModel, error)
 	Delete(ctx context.Context, userID int64) error
+	CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error)
+	Follow(ctx context.Context, userID int64, targetUserID int64) error
+	Unfollow(ctx context.Context, userID int64, targetUserID int64) error
 }
 
 type UserRepo struct {
@@ -253,5 +256,30 @@ func (r *UserRepo) Delete(ctx context.Context, userID int64) error {
 		return err
 	}
 	_, err := r.postgres.ExecContext(ctx, query, userID)
+	return err
+}
+
+func (r *UserRepo) CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM user_followers WHERE user_id = $1 AND follower_id = $2)`
+	row := r.postgres.QueryRowContext(ctx, query, targetUserID, userID)
+
+	var exists bool
+	err := row.Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+
+func (r *UserRepo) Follow(ctx context.Context, userID int64, targetUserID int64) error {
+	query := `INSERT INTO user_followers (user_id, follower_id) VALUES ($1, $2)`
+	_, err := r.postgres.ExecContext(ctx, query, targetUserID, userID)
+	return err
+}
+
+func (r *UserRepo) Unfollow(ctx context.Context, userID int64, targetUserID int64) error {
+	query := `DELETE FROM user_followers WHERE user_id = $1 AND follower_id = $2`
+	_, err := r.postgres.ExecContext(ctx, query, targetUserID, userID)
 	return err
 }

@@ -20,10 +20,16 @@ var (
 	ToChangeUsername = "tochange"
 	ToChangeEmail    = "tochange@example.com"
 	ToChangePassword = "Password123!"
+	ToFollowUsername = "tofollow"
+	ToFollowEmail    = "tofollow@example.com"
+	ToFollowPassword = "Password123!"
 )
 
 func init() {
-	gofakeit.Seed(0)
+	err := gofakeit.Seed(0)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func ValidUsername() string {

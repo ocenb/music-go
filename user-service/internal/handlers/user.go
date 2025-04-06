@@ -59,3 +59,48 @@ func (s *UserServer) DeleteUser(ctx context.Context, req *emptypb.Empty) (*users
 	res := &userservice.DeleteUserResponse{Success: true}
 	return res, nil
 }
+
+func (s *UserServer) CheckFollow(ctx context.Context, req *userservice.CheckFollowRequest) (*userservice.CheckFollowResponse, error) {
+	user, _, err := utils.GetInfoFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	exists, err := s.userService.CheckFollow(ctx, user.ID, req.UserId)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &userservice.CheckFollowResponse{IsFollowed: exists}
+	return res, nil
+}
+
+func (s *UserServer) Follow(ctx context.Context, req *userservice.FollowRequest) (*userservice.FollowResponse, error) {
+	user, _, err := utils.GetInfoFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.userService.Follow(ctx, user.ID, req.UserId)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &userservice.FollowResponse{Success: true}
+	return res, nil
+}
+
+func (s *UserServer) Unfollow(ctx context.Context, req *userservice.UnfollowRequest) (*userservice.UnfollowResponse, error) {
+	user, _, err := utils.GetInfoFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.userService.Unfollow(ctx, user.ID, req.UserId)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &userservice.UnfollowResponse{Success: true}
+	return res, nil
+}

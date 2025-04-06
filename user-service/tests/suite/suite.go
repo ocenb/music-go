@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/ocenb/music-protos/gen/userservice"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

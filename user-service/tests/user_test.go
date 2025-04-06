@@ -112,3 +112,58 @@ func TestDeleteUser(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.True(t, resp.Success)
 }
+
+func TestFollowUnfollow(t *testing.T) {
+	ctx, s := suite.New(t)
+
+	login1Req := &userservice.LoginRequest{
+		Email:    suite.AdminEmail,
+		Password: suite.AdminPassword,
+	}
+	login1Resp, err := s.UserClient.Login(ctx, login1Req)
+	require.NoError(t, err)
+
+	login2Req := &userservice.LoginRequest{
+		Email:    suite.ToFollowEmail,
+		Password: suite.ToFollowPassword,
+	}
+	login2Resp, err := s.UserClient.Login(ctx, login2Req)
+	require.NoError(t, err)
+
+	md1 := metadata.New(map[string]string{"authorization": "Bearer " + login1Resp.AccessToken})
+	authCtx1 := metadata.NewOutgoingContext(ctx, md1)
+
+	checkReq := &userservice.CheckFollowRequest{
+		UserId: login2Resp.User.Id,
+	}
+	checkResp, err := s.UserClient.CheckFollow(authCtx1, checkReq)
+	require.NoError(t, err)
+	require.NotNil(t, checkResp)
+	assert.False(t, checkResp.IsFollowed)
+
+	followReq := &userservice.FollowRequest{
+		UserId: login2Resp.User.Id,
+	}
+	followResp, err := s.UserClient.Follow(authCtx1, followReq)
+	require.NoError(t, err)
+	require.NotNil(t, followResp)
+	assert.True(t, followResp.Success)
+
+	checkRespAfterFollow, err := s.UserClient.CheckFollow(authCtx1, checkReq)
+	require.NoError(t, err)
+	require.NotNil(t, checkRespAfterFollow)
+	assert.True(t, checkRespAfterFollow.IsFollowed)
+
+	unfollowReq := &userservice.UnfollowRequest{
+		UserId: login2Resp.User.Id,
+	}
+	unfollowResp, err := s.UserClient.Unfollow(authCtx1, unfollowReq)
+	require.NoError(t, err)
+	require.NotNil(t, unfollowResp)
+	assert.True(t, unfollowResp.Success)
+
+	checkRespAfterUnfollow, err := s.UserClient.CheckFollow(authCtx1, checkReq)
+	require.NoError(t, err)
+	require.NotNil(t, checkRespAfterUnfollow)
+	assert.False(t, checkRespAfterUnfollow.IsFollowed)
+}

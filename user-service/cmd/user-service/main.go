@@ -54,13 +54,11 @@ func main() {
 	go runTokenCleanup(tokenService, log)
 
 	log.Info("Initializing gRPC server", slog.Int("port", cfg.GRPC.Port))
-	grpcApp := app.New(authService, userService, cfg.GRPC.Port, cfg, log)
+	grpcApp := app.New(authService, userService, cfg, log)
 
 	go func() {
 		grpcApp.Run()
 	}()
-
-	log.Info("Service started successfully", slog.Duration("startup_time", time.Since(startTime)))
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)

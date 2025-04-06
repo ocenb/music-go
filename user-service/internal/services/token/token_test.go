@@ -104,6 +104,7 @@ func TestGenerateTokens(t *testing.T) {
 	cfg := &config.Config{
 		JWTSecret:            "test-secret",
 		RefreshTokenLiveTime: time.Hour * 24 * 30,
+		AccessTokenLiveTime:  time.Hour * 24 * 30,
 	}
 	log := logger.NewForTest()
 	mockRepo := new(tokenmocks.MockTokenRepo)

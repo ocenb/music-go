@@ -27,6 +27,9 @@ type UserServiceInterface interface {
 	ChangeEmail(ctx context.Context, userID int64, email string) (*userservice.UserPrivateModel, error)
 	ChangePassword(ctx context.Context, userID int64, password string) (*userservice.UserPrivateModel, error)
 	Delete(ctx context.Context, userID int64) error
+	CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error)
+	Follow(ctx context.Context, userID int64, targetUserID int64) error
+	Unfollow(ctx context.Context, userID int64, targetUserID int64) error
 }
 
 type UserService struct {
@@ -210,5 +213,43 @@ func (s *UserService) Delete(ctx context.Context, userID int64) error {
 	}
 
 	s.log.Info("User deleted successfully", slog.Int64("user_id", userID))
+	return nil
+}
+
+func (s *UserService) CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error) {
+	exists, err := s.userRepo.CheckFollow(ctx, userID, targetUserID)
+	if err != nil {
+		return false, utils.InternalError(err, "failed to check if user is followed")
+	}
+	return exists, nil
+}
+
+func (s *UserService) Follow(ctx context.Context, userID int64, targetUserID int64) error {
+	exists, err := s.userRepo.CheckFollow(ctx, userID, targetUserID)
+	if err != nil {
+		return utils.InternalError(err, "failed to check if user is followed")
+	}
+	if exists {
+		return utils.AlreadyExistsError("user already followed")
+	}
+	err = s.userRepo.Follow(ctx, userID, targetUserID)
+	if err != nil {
+		return utils.InternalError(err, "failed to follow user")
+	}
+	return nil
+}
+
+func (s *UserService) Unfollow(ctx context.Context, userID int64, targetUserID int64) error {
+	exists, err := s.userRepo.CheckFollow(ctx, userID, targetUserID)
+	if err != nil {
+		return utils.InternalError(err, "failed to check if user is followed")
+	}
+	if !exists {
+		return utils.NotFoundError("user not followed")
+	}
+	err = s.userRepo.Unfollow(ctx, userID, targetUserID)
+	if err != nil {
+		return utils.InternalError(err, "failed to unfollow user")
+	}
 	return nil
 }

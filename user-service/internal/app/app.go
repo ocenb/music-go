@@ -32,7 +32,6 @@ type App struct {
 func New(
 	authService auth.AuthServiceInterface,
 	userService user.UserServiceInterface,
-	port int,
 	cfg *config.Config,
 	log *slog.Logger,
 ) *App {
@@ -67,7 +66,7 @@ func New(
 	return &App{
 		log:        log,
 		gRPCServer: gRPCServer,
-		port:       port,
+		port:       cfg.GRPC.Port,
 	}
 }
 

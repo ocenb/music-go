@@ -15,7 +15,7 @@ type Config struct {
 	LogLevel             int           `yaml:"log_level" env-default:"0"`
 	LogHandler           string        `yaml:"log_handler" env-default:"text"`
 	AccessTokenLiveTime  time.Duration `yaml:"access_token_live_time" env-default:"1h"`
-	RefreshTokenLiveTime time.Duration `yaml:"refresh_token_live_time" env-default:"30d"`
+	RefreshTokenLiveTime time.Duration `yaml:"refresh_token_live_time" env-default:"720h"`
 	DBMaxOpenConns       int           `yaml:"db_max_open_conns" env-default:"10"`
 	DBMaxIdleConns       int           `yaml:"db_max_idle_conns" env-default:"5"`
 	DBConnMaxLifetime    time.Duration `yaml:"db_conn_max_lifetime" env-default:"1h"`

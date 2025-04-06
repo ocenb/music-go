@@ -177,3 +177,21 @@ func (s *UserServer) ChangePassword(ctx context.Context, req *userservice.Change
 	}
 	return res, nil
 }
+
+func (s *UserServer) CheckAuth(ctx context.Context, req *emptypb.Empty) (*userservice.CheckAuthResponse, error) {
+	user, tokenId, err := utils.GetInfoFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	res := &userservice.CheckAuthResponse{
+		User: &userservice.UserPrivateModel{
+			Id:        user.ID,
+			Username:  user.Username,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+		},
+		TokenId: tokenId,
+	}
+	return res, nil
+}

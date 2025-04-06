@@ -132,26 +132,33 @@ func (s *TokenService) GenerateVerificationToken() string {
 
 func (s *TokenService) generateTokens(userID int64) (string, string, string, time.Time, error) {
 	tokenId := uuid.New().String()
-	expiresAt := time.Now().Add(s.cfg.RefreshTokenLiveTime)
+	refreshExpiresAt := time.Now().Add(s.cfg.RefreshTokenLiveTime)
+	accessExpiresAt := time.Now().Add(s.cfg.AccessTokenLiveTime)
 
-	payload := jwt.MapClaims{
+	accessPayload := jwt.MapClaims{
 		"userId":  userID,
 		"tokenId": tokenId,
-		"exp":     expiresAt.Unix(),
+		"exp":     accessExpiresAt.Unix(),
+		"iat":     time.Now().Unix(),
+	}
+	refreshPayload := jwt.MapClaims{
+		"userId":  userID,
+		"tokenId": tokenId,
+		"exp":     refreshExpiresAt.Unix(),
 		"iat":     time.Now().Unix(),
 	}
 
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessPayload)
 	accessTokenString, err := accessToken.SignedString([]byte(s.cfg.JWTSecret))
 	if err != nil {
 		return "", "", "", time.Time{}, utils.InternalError(err, "failed to sign access token")
 	}
 
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshPayload)
 	refreshTokenString, err := refreshToken.SignedString([]byte(s.cfg.JWTSecret))
 	if err != nil {
 		return "", "", "", time.Time{}, utils.InternalError(err, "failed to sign refresh token")
 	}
 
-	return accessTokenString, refreshTokenString, tokenId, expiresAt, nil
+	return accessTokenString, refreshTokenString, tokenId, refreshExpiresAt, nil
 }

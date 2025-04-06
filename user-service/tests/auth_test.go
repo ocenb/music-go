@@ -121,3 +121,32 @@ func TestRefresh(t *testing.T) {
 	_, err = s.UserClient.Refresh(ctx, refreshReq)
 	require.Error(t, err)
 }
+
+func TestCheckAuth(t *testing.T) {
+	ctx, s := suite.New(t)
+
+	loginReq := &userservice.LoginRequest{
+		Email:    suite.AdminEmail,
+		Password: suite.AdminPassword,
+	}
+
+	loginResp, err := s.UserClient.Login(ctx, loginReq)
+	require.NoError(t, err)
+
+	md := metadata.New(map[string]string{"authorization": "Bearer " + loginResp.AccessToken})
+	authCtx := metadata.NewOutgoingContext(ctx, md)
+
+	resp, err := s.UserClient.CheckAuth(authCtx, &emptypb.Empty{})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, resp.User)
+	assert.Equal(t, suite.AdminUsername, resp.User.Username)
+	assert.NotEmpty(t, resp.TokenId)
+
+	invalidToken := suite.FakeAccessToken()
+	invalidMd := metadata.New(map[string]string{"authorization": "Bearer " + invalidToken})
+	invalidAuthCtx := metadata.NewOutgoingContext(ctx, invalidMd)
+
+	_, err = s.UserClient.CheckAuth(invalidAuthCtx, &emptypb.Empty{})
+	require.Error(t, err)
+}

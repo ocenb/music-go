@@ -96,3 +96,18 @@ func (m *MockUserService) Delete(ctx context.Context, userID int64) error {
 	args := m.Called(ctx, userID)
 	return args.Error(0)
 }
+
+func (m *MockUserService) CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error) {
+	args := m.Called(ctx, userID, targetUserID)
+	return args.Get(0).(bool), args.Error(1)
+}
+
+func (m *MockUserService) Follow(ctx context.Context, userID int64, targetUserID int64) error {
+	args := m.Called(ctx, userID, targetUserID)
+	return args.Error(0)
+}
+
+func (m *MockUserService) Unfollow(ctx context.Context, userID int64, targetUserID int64) error {
+	args := m.Called(ctx, userID, targetUserID)
+	return args.Error(0)
+}
