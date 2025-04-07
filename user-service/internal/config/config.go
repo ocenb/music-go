@@ -29,6 +29,7 @@ type Config struct {
 	DBName               string        `env:"POSTGRES_DB" env-required:"true"`
 	DBSSLMode            string        `env:"POSTGRES_SSL_MODE" env-default:"disable"`
 	DatabaseUrl          string
+	SearchServiceAddress string `env:"SEARCH_SERVICE_ADDRESS" env-required:"true"`
 }
 
 type GRPCConfig struct {
