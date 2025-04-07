@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ocenb/music-go/user-service/internal/app"
+	"github.com/ocenb/music-go/user-service/internal/clients/searchservice"
 	"github.com/ocenb/music-go/user-service/internal/config"
 	"github.com/ocenb/music-go/user-service/internal/logger"
 	authrepo "github.com/ocenb/music-go/user-service/internal/repos/auth"
@@ -42,13 +43,25 @@ func main() {
 			log.Error("Failed to close postgres connection", utils.ErrLog(err))
 		}
 	}()
+	searchServiceClient, err := searchservice.New(cfg)
+	if err != nil {
+		log.Error("Failed to connect to search service", utils.ErrLog(err))
+		os.Exit(1)
+	}
+	defer func() {
+		log.Info("Closing search service connection")
+		err := searchServiceClient.Conn.Close()
+		if err != nil {
+			log.Error("Failed to close search service connection", utils.ErrLog(err))
+		}
+	}()
 
 	tokenRepo := tokenrepo.NewTokenRepo(postgres)
 	userRepo := userrepo.NewUserRepo(postgres)
 	authRepo := authrepo.NewAuthRepo(postgres)
 
 	tokenService := token.NewTokenService(cfg, log, tokenRepo)
-	userService := user.NewUserService(cfg, log, userRepo)
+	userService := user.NewUserService(cfg, log, userRepo, searchServiceClient)
 	authService := auth.NewAuthService(cfg, log, userService, tokenService, authRepo)
 
 	go runTokenCleanup(tokenService, log)

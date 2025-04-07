@@ -7,11 +7,13 @@ import (
 	"log/slog"
 	"time"
 
+	searchclient "github.com/ocenb/music-go/user-service/internal/clients/searchservice"
 	"github.com/ocenb/music-go/user-service/internal/config"
 	"github.com/ocenb/music-go/user-service/internal/models"
 	userrepo "github.com/ocenb/music-go/user-service/internal/repos/user"
 	"github.com/ocenb/music-go/user-service/internal/storage"
 	"github.com/ocenb/music-go/user-service/internal/utils"
+	"github.com/ocenb/music-protos/gen/searchservice"
 	"github.com/ocenb/music-protos/gen/userservice"
 )
 
@@ -33,16 +35,18 @@ type UserServiceInterface interface {
 }
 
 type UserService struct {
-	cfg      *config.Config
-	userRepo userrepo.UserRepoInterface
-	log      *slog.Logger
+	cfg                 *config.Config
+	userRepo            userrepo.UserRepoInterface
+	log                 *slog.Logger
+	searchServiceClient *searchclient.SearchServiceClient
 }
 
-func NewUserService(cfg *config.Config, log *slog.Logger, userRepo userrepo.UserRepoInterface) UserServiceInterface {
+func NewUserService(cfg *config.Config, log *slog.Logger, userRepo userrepo.UserRepoInterface, searchServiceClient *searchclient.SearchServiceClient) UserServiceInterface {
 	return &UserService{
-		cfg:      cfg,
-		userRepo: userRepo,
-		log:      log,
+		cfg:                 cfg,
+		userRepo:            userRepo,
+		log:                 log,
+		searchServiceClient: searchServiceClient,
 	}
 }
 
@@ -130,8 +134,14 @@ func (s *UserService) Create(ctx context.Context, username, email, password, ver
 	}
 
 	s.log.Info("User created successfully", slog.String("username", username), slog.String("email", email), slog.Int64("user_id", user.Id))
-	// TODO
-	// Create user in search service
+
+	addResp, err := s.searchServiceClient.Client.AddUser(ctx, &searchservice.AddOrUpdateRequest{
+		Id:   user.Id,
+		Name: username,
+	})
+	if err != nil || !addResp.Success {
+		return nil, utils.InternalError(err, "failed to add user to search service")
+	}
 
 	return user, nil
 }
@@ -150,8 +160,13 @@ func (s *UserService) ChangeUsername(ctx context.Context, userID int64, username
 			return utils.InternalError(err, "failed to change username")
 		}
 
-		// TODO
-		// Update user in search service
+		updateResp, err := s.searchServiceClient.Client.UpdateUser(ctx, &searchservice.AddOrUpdateRequest{
+			Id:   userID,
+			Name: username,
+		})
+		if err != nil || !updateResp.Success {
+			return utils.InternalError(err, "failed to update user in search service")
+		}
 
 		return nil
 	})
@@ -202,8 +217,12 @@ func (s *UserService) Delete(ctx context.Context, userID int64) error {
 			return utils.InternalError(err, "failed to delete user")
 		}
 
-		// TODO
-		// Delete user in search service
+		deleteResp, err := s.searchServiceClient.Client.DeleteUser(ctx, &searchservice.DeleteRequest{
+			Id: userID,
+		})
+		if err != nil || !deleteResp.Success {
+			return utils.InternalError(err, "failed to delete user in search service")
+		}
 
 		return nil
 	})

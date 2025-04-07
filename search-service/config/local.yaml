@@ -1,0 +1,5 @@
+grpc:
+  port: 9091
+  timeout: 5s
+log_level: 0
+log_handler: text
