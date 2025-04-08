@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ocenb/music-go/user-service/internal/app"
+	"github.com/ocenb/music-go/user-service/internal/clients/notificationservice"
 	"github.com/ocenb/music-go/user-service/internal/clients/searchservice"
 	"github.com/ocenb/music-go/user-service/internal/config"
 	"github.com/ocenb/music-go/user-service/internal/logger"
@@ -43,6 +44,7 @@ func main() {
 			log.Error("Failed to close postgres connection", utils.ErrLog(err))
 		}
 	}()
+
 	searchServiceClient, err := searchservice.New(cfg)
 	if err != nil {
 		log.Error("Failed to connect to search service", utils.ErrLog(err))
@@ -56,13 +58,26 @@ func main() {
 		}
 	}()
 
+	notificationService, err := notificationservice.NewNotificationService([]string{"localhost:9092"})
+	if err != nil {
+		log.Error("Failed to create notification service", utils.ErrLog(err))
+		os.Exit(1)
+	}
+	defer func() {
+		log.Info("Closing notification service")
+		err := notificationService.Close()
+		if err != nil {
+			log.Error("Failed to close notification service", utils.ErrLog(err))
+		}
+	}()
+
 	tokenRepo := tokenrepo.NewTokenRepo(postgres)
 	userRepo := userrepo.NewUserRepo(postgres)
 	authRepo := authrepo.NewAuthRepo(postgres)
 
 	tokenService := token.NewTokenService(cfg, log, tokenRepo)
 	userService := user.NewUserService(cfg, log, userRepo, searchServiceClient)
-	authService := auth.NewAuthService(cfg, log, userService, tokenService, authRepo)
+	authService := auth.NewAuthService(cfg, log, userService, tokenService, authRepo, notificationService)
 
 	go runTokenCleanup(tokenService, log)
 

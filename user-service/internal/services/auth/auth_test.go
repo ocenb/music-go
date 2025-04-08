@@ -9,6 +9,7 @@ import (
 	"github.com/ocenb/music-go/user-service/internal/config"
 	"github.com/ocenb/music-go/user-service/internal/logger"
 	"github.com/ocenb/music-go/user-service/internal/mocks/authmocks"
+	"github.com/ocenb/music-go/user-service/internal/mocks/notificationmocks"
 	"github.com/ocenb/music-go/user-service/internal/mocks/tokenmocks"
 	"github.com/ocenb/music-go/user-service/internal/mocks/usermocks"
 	"github.com/ocenb/music-go/user-service/internal/models"
@@ -26,7 +27,8 @@ func suite() (context.Context, *tokenmocks.MockTokenService, *usermocks.MockUser
 	mockTokenService := new(tokenmocks.MockTokenService)
 	mockUserService := new(usermocks.MockUserService)
 	mockAuthRepo := new(authmocks.MockAuthRepo)
-	authService := NewAuthService(cfg, log, mockUserService, mockTokenService, mockAuthRepo)
+	mockNotificationService := new(notificationmocks.MockNotificationService)
+	authService := NewAuthService(cfg, log, mockUserService, mockTokenService, mockAuthRepo, mockNotificationService)
 
 	return ctx, mockTokenService, mockUserService, authService
 }

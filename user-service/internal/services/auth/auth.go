@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/ocenb/music-go/user-service/internal/clients/notificationservice"
 	"github.com/ocenb/music-go/user-service/internal/config"
 	"github.com/ocenb/music-go/user-service/internal/models"
 	authrepo "github.com/ocenb/music-go/user-service/internal/repos/auth"
@@ -32,20 +33,22 @@ type AuthServiceInterface interface {
 }
 
 type AuthService struct {
-	cfg          *config.Config
-	userService  user.UserServiceInterface
-	tokenService token.TokenServiceInterface
-	authRepo     authrepo.AuthRepoInterface
-	log          *slog.Logger
+	cfg                 *config.Config
+	userService         user.UserServiceInterface
+	tokenService        token.TokenServiceInterface
+	authRepo            authrepo.AuthRepoInterface
+	notificationService notificationservice.NotificationServiceInterface
+	log                 *slog.Logger
 }
 
-func NewAuthService(cfg *config.Config, log *slog.Logger, userService user.UserServiceInterface, tokenService token.TokenServiceInterface, authRepo authrepo.AuthRepoInterface) AuthServiceInterface {
+func NewAuthService(cfg *config.Config, log *slog.Logger, userService user.UserServiceInterface, tokenService token.TokenServiceInterface, authRepo authrepo.AuthRepoInterface, notificationService notificationservice.NotificationServiceInterface) AuthServiceInterface {
 	return &AuthService{
-		cfg:          cfg,
-		userService:  userService,
-		tokenService: tokenService,
-		authRepo:     authRepo,
-		log:          log,
+		cfg:                 cfg,
+		userService:         userService,
+		tokenService:        tokenService,
+		authRepo:            authRepo,
+		notificationService: notificationService,
+		log:                 log,
 	}
 }
 
@@ -88,8 +91,11 @@ func (s *AuthService) Register(ctx context.Context, username, email, password st
 
 	s.log.Info("User registered successfully", slog.String("username", username), slog.String("email", email), slog.Int64("user_id", user.Id))
 
-	// TODO
-	// Send verification email
+	err = s.notificationService.SendVerificationEmail(user.Email, verificationToken)
+	if err != nil {
+		s.log.Error("Registration failed: error sending verification email", slog.String("email", email), utils.ErrLog(err))
+		return nil, utils.InternalError(err, "failed to send verification email")
+	}
 
 	return user, nil
 }
@@ -231,8 +237,11 @@ func (s *AuthService) NewVerification(ctx context.Context, email, password strin
 		return nil, utils.InternalError(err, "failed to update verification token")
 	}
 
-	// TODO
-	// Send verification email
+	err = s.notificationService.SendVerificationEmail(user.Email, newVerificationToken)
+	if err != nil {
+		s.log.Error("New verification failed: error sending verification email", slog.String("email", user.Email), utils.ErrLog(err))
+		return nil, utils.InternalError(err, "failed to send verification email")
+	}
 
 	return updatedUser, nil
 }

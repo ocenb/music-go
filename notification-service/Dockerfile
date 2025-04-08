@@ -8,16 +8,16 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o /app/search-service cmd/search-service/main.go
+RUN go build -o /app/notification-service cmd/notification-service/main.go
 
 FROM alpine:latest
 
 WORKDIR /app
 
-COPY --from=build /app/search-service /app/search-service
+COPY --from=build /app/notification-service /app/notification-service
 COPY --from=build /app/config /app/config
 COPY --from=build /app/.env /app/.env
 
-EXPOSE 9091
+EXPOSE 9089
 
-CMD ["/app/search-service"]
+CMD ["/app/notification-service"]
