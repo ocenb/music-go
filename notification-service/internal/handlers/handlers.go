@@ -11,9 +11,9 @@ import (
 func EmailNotificationHandler(log *slog.Logger, emailService *email.EmailService) func(notification kafka.EmailNotification) error {
 	return func(notification kafka.EmailNotification) error {
 		log.Info("Received notification for email", slog.String("email", notification.Email))
-		err := emailService.SendVerificationEmail(notification.Email, notification.VerificationLink)
+		err := emailService.SendEmailNotification(notification.Email, notification.Msg)
 		if err != nil {
-			log.Error("Failed to send verification email",
+			log.Error("Failed to send email notification",
 				slog.String("email", notification.Email),
 				utils.ErrLog(err))
 			return err

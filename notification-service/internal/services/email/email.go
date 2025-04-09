@@ -18,7 +18,7 @@ func NewEmailService(cfg *config.Config) *EmailService {
 	}
 }
 
-func (s *EmailService) SendVerificationEmail(email, verificationLink string) error {
+func (s *EmailService) SendEmailNotification(email, msg string) error {
 	const maxRetries = 3
 	var lastErr error
 
@@ -27,7 +27,7 @@ func (s *EmailService) SendVerificationEmail(email, verificationLink string) err
 			time.Sleep(time.Second * time.Duration(i*2))
 		}
 
-		err := s.sendEmail(email, verificationLink)
+		err := s.sendEmail(email, msg)
 		if err == nil {
 			return nil
 		}
@@ -37,19 +37,17 @@ func (s *EmailService) SendVerificationEmail(email, verificationLink string) err
 	return fmt.Errorf("failed to send email after %d retries: %w", maxRetries, lastErr)
 }
 
-func (s *EmailService) sendEmail(to, verificationLink string) error {
+func (s *EmailService) sendEmail(to, msg string) error {
 	auth := smtp.PlainAuth("", s.cfg.SMTPUsername, s.cfg.SMTPPassword, s.cfg.SMTPHost)
 
-	subject := "Verify your email"
+	subject := "Notification"
 	htmlBody := fmt.Sprintf(`
 		<html>
 			<body>
-				<p>Please verify your email by clicking the link below:</p>
-				<p><a href="%s">Verify Email</a></p>
-				<p>If you didn't request this, please ignore this email.</p>
+				<p>%s</p>
 			</body>
 		</html>
-	`, verificationLink)
+	`, msg)
 
 	message := fmt.Sprintf("To: %s\r\n"+
 		"Subject: %s\r\n"+

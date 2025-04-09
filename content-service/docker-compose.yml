@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: content-service-db
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: content-service-app
+    env_file:
+      - .env
+    ports:
+      - "9089:9089"
+    depends_on:
+      - postgres
+    restart: always
+
+volumes:
+  postgres_data:
+    driver: local

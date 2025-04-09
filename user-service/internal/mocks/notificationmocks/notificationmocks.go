@@ -4,16 +4,16 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockNotificationService struct {
+type MockNotificationClient struct {
 	mock.Mock
 }
 
-func (m *MockNotificationService) SendVerificationEmail(email, token string) error {
-	args := m.Called(email, token)
+func (m *MockNotificationClient) SendEmailNotification(email, msg string) error {
+	args := m.Called(email, msg)
 	return args.Error(0)
 }
 
-func (m *MockNotificationService) Close() error {
+func (m *MockNotificationClient) Close() error {
 	args := m.Called()
 	return args.Error(0)
 }

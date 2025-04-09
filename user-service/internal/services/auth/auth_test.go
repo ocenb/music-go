@@ -27,8 +27,8 @@ func suite() (context.Context, *tokenmocks.MockTokenService, *usermocks.MockUser
 	mockTokenService := new(tokenmocks.MockTokenService)
 	mockUserService := new(usermocks.MockUserService)
 	mockAuthRepo := new(authmocks.MockAuthRepo)
-	mockNotificationService := new(notificationmocks.MockNotificationService)
-	authService := NewAuthService(cfg, log, mockUserService, mockTokenService, mockAuthRepo, mockNotificationService)
+	mockNotificationClient := new(notificationmocks.MockNotificationClient)
+	authService := NewAuthService(cfg, log, mockUserService, mockTokenService, mockAuthRepo, mockNotificationClient)
 
 	return ctx, mockTokenService, mockUserService, authService
 }

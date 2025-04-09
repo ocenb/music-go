@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ocenb/music-go/user-service/internal/app"
-	"github.com/ocenb/music-go/user-service/internal/clients/notificationservice"
+	"github.com/ocenb/music-go/user-service/internal/clients/notificationclient"
 	"github.com/ocenb/music-go/user-service/internal/clients/searchservice"
 	"github.com/ocenb/music-go/user-service/internal/config"
 	"github.com/ocenb/music-go/user-service/internal/logger"
@@ -58,16 +58,16 @@ func main() {
 		}
 	}()
 
-	notificationService, err := notificationservice.NewNotificationService([]string{"localhost:9092"})
+	notificationClient, err := notificationclient.NewNotificationClient(cfg.KafkaBrokers)
 	if err != nil {
-		log.Error("Failed to create notification service", utils.ErrLog(err))
+		log.Error("Failed to create notification client", utils.ErrLog(err))
 		os.Exit(1)
 	}
 	defer func() {
-		log.Info("Closing notification service")
-		err := notificationService.Close()
+		log.Info("Closing notification client")
+		err := notificationClient.Close()
 		if err != nil {
-			log.Error("Failed to close notification service", utils.ErrLog(err))
+			log.Error("Failed to close notification client", utils.ErrLog(err))
 		}
 	}()
 
@@ -77,7 +77,7 @@ func main() {
 
 	tokenService := token.NewTokenService(cfg, log, tokenRepo)
 	userService := user.NewUserService(cfg, log, userRepo, searchServiceClient)
-	authService := auth.NewAuthService(cfg, log, userService, tokenService, authRepo, notificationService)
+	authService := auth.NewAuthService(cfg, log, userService, tokenService, authRepo, notificationClient)
 
 	go runTokenCleanup(tokenService, log)
 

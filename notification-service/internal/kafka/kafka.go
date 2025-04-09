@@ -12,8 +12,8 @@ import (
 )
 
 type EmailNotification struct {
-	Email            string `json:"email"`
-	VerificationLink string `json:"verification_link"`
+	Email string `json:"email"`
+	Msg   string `json:"msg"`
 }
 
 type Consumer struct {
