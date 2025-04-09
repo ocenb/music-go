@@ -8,12 +8,12 @@
 
 ### Stack
 
-Go
-PostgreSQL, Elasticsearch
-Kafka, gRPC, HTTP(REST)
-Gin, Buf, Ffmpeg
-Docker, Nginx
-Cloudinary (file storage)
+- Go
+- PostgreSQL, Elasticsearch
+- Kafka, gRPC, HTTP(REST)
+- Gin, Buf, Ffmpeg
+- Docker, Nginx
+- Cloudinary (file storage)
 
 ### Proto файлы
 
@@ -56,6 +56,22 @@ https://github.com/ocenb/music-protos
 
 - Kafka для приема сообщений от других сервисов
 - SMTP для отправки email уведомлений
+
+## Тестирование
+
+- **Юнит-тесты**
+
+```bash
+make tu
+```
+
+- **Функциональные тесты**
+
+```bash
+make tf
+```
+
+Для unit тестирования используются моки (директория `internal/mocks`).
 
 ## Запуск проекта
 
@@ -131,6 +147,8 @@ docker-compose up -d
 │   └── utils/           # Утилиты
 ├── migrations/          # Миграции БД
 ├── config/              # Файлы конфигурации
+├── tests/               # Функциональные тесты
+│   └── suite/           # Настройка тестового окружения
 ├── Dockerfile           # Сборка Docker образа
 ├── docker-compose.yml   # Конфигурация Docker Compose
 ├── .env.example         # Пример переменных окружения
