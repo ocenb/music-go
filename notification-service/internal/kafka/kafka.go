@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/ocenb/music-go/notification-service/internal/config"
 	"github.com/segmentio/kafka-go"
@@ -30,14 +29,6 @@ func NewConsumer(cfg *config.Config) (*Consumer, error) {
 		Topic:   cfg.KafkaTopic,
 		GroupID: cfg.KafkaGroupID,
 	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	_, err := reader.ReadMessage(ctx)
-	if err != nil && err != context.DeadlineExceeded {
-		return nil, fmt.Errorf("failed to connect to kafka: %w", err)
-	}
 
 	return &Consumer{
 		reader: reader,

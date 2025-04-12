@@ -39,7 +39,6 @@ func main() {
 		log.Error("Failed to create Kafka consumer", utils.ErrLog(err))
 		os.Exit(1)
 	}
-
 	defer func() {
 		log.Info("Closing kafka consumer")
 		if err := consumer.Close(); err != nil {

@@ -3,22 +3,23 @@ package config
 import (
 	"log"
 	"os"
+	"strings"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	LogLevel     int      `yaml:"log_level" env-default:"0"`
-	LogHandler   string   `yaml:"log_handler" env-default:"text"`
-	Environment  string   `env:"ENVIRONMENT" env-required:"true"`
-	KafkaBrokers []string `env:"KAFKA_BROKERS" env-required:"true"`
-	KafkaTopic   string   `env:"KAFKA_TOPIC" env-required:"true"`
-	KafkaGroupID string   `env:"KAFKA_GROUP_ID" env-required:"true"`
-	SMTPHost     string   `env:"SMTP_HOST" env-required:"true"`
-	SMTPPort     int      `env:"SMTP_PORT" env-required:"true"`
-	SMTPUsername string   `env:"SMTP_USERNAME" env-required:"true"`
-	SMTPPassword string   `env:"SMTP_PASSWORD" env-required:"true"`
+	LogLevel     int    `yaml:"log_level" env-default:"0"`
+	LogHandler   string `yaml:"log_handler" env-default:"text"`
+	Environment  string `env:"ENVIRONMENT" env-required:"true"`
+	KafkaBrokers []string
+	KafkaTopic   string `env:"KAFKA_TOPIC" env-required:"true"`
+	KafkaGroupID string `env:"KAFKA_GROUP_ID" env-required:"true"`
+	SMTPHost     string `env:"SMTP_HOST" env-required:"true"`
+	SMTPPort     int    `env:"SMTP_PORT" env-required:"true"`
+	SMTPUsername string `env:"SMTP_USERNAME" env-required:"true"`
+	SMTPPassword string `env:"SMTP_PASSWORD" env-required:"true"`
 }
 
 func MustLoad() *Config {
@@ -45,6 +46,13 @@ func MustLoad() *Config {
 	err = cleanenv.ReadConfig(configPath, &cfg)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	brokersStr := os.Getenv("KAFKA_BROKERS")
+	if brokersStr != "" {
+		cfg.KafkaBrokers = strings.Split(brokersStr, ",")
+	} else {
+		log.Fatalf("KAFKA_BROKERS is not set")
 	}
 
 	return &cfg

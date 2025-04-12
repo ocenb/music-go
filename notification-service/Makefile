@@ -8,3 +8,6 @@ fmt:
 
 lint:
 	golangci-lint run
+
+test:
+	go run tests/send_test_message.go

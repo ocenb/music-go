@@ -9,12 +9,14 @@ import (
 )
 
 type EmailService struct {
-	cfg *config.Config
+	cfg  *config.Config
+	auth smtp.Auth
 }
 
 func NewEmailService(cfg *config.Config) *EmailService {
 	return &EmailService{
-		cfg: cfg,
+		cfg:  cfg,
+		auth: smtp.PlainAuth("", cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPHost),
 	}
 }
 
@@ -38,8 +40,6 @@ func (s *EmailService) SendEmailNotification(email, msg string) error {
 }
 
 func (s *EmailService) sendEmail(to, msg string) error {
-	auth := smtp.PlainAuth("", s.cfg.SMTPUsername, s.cfg.SMTPPassword, s.cfg.SMTPHost)
-
 	subject := "Notification"
 	htmlBody := fmt.Sprintf(`
 		<html>
@@ -57,5 +57,5 @@ func (s *EmailService) sendEmail(to, msg string) error {
 		"%s\r\n", to, subject, htmlBody)
 
 	addr := fmt.Sprintf("%s:%d", s.cfg.SMTPHost, s.cfg.SMTPPort)
-	return smtp.SendMail(addr, auth, s.cfg.SMTPUsername, []string{to}, []byte(message))
+	return smtp.SendMail(addr, s.auth, s.cfg.SMTPUsername, []string{to}, []byte(message))
 }
