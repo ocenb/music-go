@@ -11,7 +11,8 @@ type PlaylistRepoInterface interface {
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 	GetByID(ctx context.Context, playlistID int64, currentUserID int64) (*PlaylistWithSavedModel, error)
 	GetByChangeableID(ctx context.Context, username, changeableID string, currentUserID int64) (*PlaylistWithSavedModel, error)
-	GetMany(ctx context.Context, userID, currentUserID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error)
+	GetMany(ctx context.Context, userID int64, currentUserID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error)
+	GetManyWithSaved(ctx context.Context, currentUserID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error)
 	Create(ctx context.Context, userID int64, username, title, changeableID, image string) (*PlaylistModel, error)
 	CheckPermission(ctx context.Context, userID, playlistID int64) (bool, error)
 	Delete(ctx context.Context, playlistID int64) error
@@ -22,8 +23,6 @@ type PlaylistRepoInterface interface {
 	CheckChangeableID(ctx context.Context, userID int64, changeableID string) (bool, error)
 	SavePlaylist(ctx context.Context, userID, playlistID int64) error
 	RemoveFromSaved(ctx context.Context, userID, playlistID int64) error
-	GetManySaved(ctx context.Context, userID int64, take int, lastID int64) ([]*UserSavedPlaylistModel, error)
-	GetManyWithSaved(ctx context.Context, userID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error)
 }
 
 type PlaylistRepo struct {
@@ -130,6 +129,78 @@ func (r *PlaylistRepo) GetMany(ctx context.Context, userID, currentUserID int64,
 	`
 
 	rows, err := r.postgres.QueryContext(ctx, query, currentUserID, userID, lastID, take)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err := rows.Close()
+		if err != nil {
+			r.log.Error("Failed to close rows", "error", err)
+		}
+	}()
+
+	var playlists []*PlaylistWithSavedModel
+
+	for rows.Next() {
+		var playlist PlaylistWithSavedModel
+		var createdAt, updatedAt time.Time
+		var savedAt sql.NullTime
+
+		err := rows.Scan(
+			&playlist.ID,
+			&playlist.UserID,
+			&playlist.Title,
+			&playlist.ChangeableID,
+			&playlist.Image,
+			&createdAt,
+			&updatedAt,
+			&playlist.IsSaved,
+			&savedAt,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		playlist.CreatedAt = createdAt
+		playlist.UpdatedAt = updatedAt
+		if savedAt.Valid {
+			playlist.SavedAt = &savedAt.Time
+		}
+
+		playlists = append(playlists, &playlist)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return playlists, nil
+}
+
+func (r *PlaylistRepo) GetManyWithSaved(ctx context.Context, userID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error) {
+	query := `
+		WITH my_playlists AS (
+			SELECT p.id, p.user_id, p.title, p.changeable_id, p.image, p.created_at, p.updated_at,
+				false as is_saved, NULL::timestamp as saved_at, p.created_at as sort_date
+			FROM playlists p
+			WHERE p.user_id = $1 AND ($2 = 0 OR p.id < $2)
+		),
+		saved_playlists AS (
+			SELECT p.id, p.user_id, p.title, p.changeable_id, p.image, p.created_at, p.updated_at,
+				true as is_saved, usp.added_at as saved_at, COALESCE(usp.added_at, p.created_at) as sort_date
+			FROM playlists p
+			JOIN user_saved_playlists usp ON p.id = usp.playlist_id
+			WHERE usp.user_id = $1 AND ($2 = 0 OR p.id < $2)
+		)
+		SELECT id, user_id, title, changeable_id, image, created_at, updated_at, is_saved, saved_at FROM my_playlists
+		UNION ALL
+		SELECT id, user_id, title, changeable_id, image, created_at, updated_at, is_saved, saved_at FROM saved_playlists
+		ORDER BY 9 DESC NULLS LAST, 6 DESC
+		LIMIT $3
+	`
+
+	rows, err := r.postgres.QueryContext(ctx, query, userID, lastID, take)
 	if err != nil {
 		return nil, err
 	}
@@ -324,113 +395,4 @@ func (r *PlaylistRepo) RemoveFromSaved(ctx context.Context, userID, playlistID i
 
 	_, err := r.postgres.ExecContext(ctx, query, userID, playlistID)
 	return err
-}
-
-func (r *PlaylistRepo) GetManyWithSaved(ctx context.Context, userID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error) {
-	query := `
-		WITH my_playlists AS (
-			SELECT p.id, p.user_id, p.title, p.changeable_id, p.image, p.created_at, p.updated_at,
-				false as is_saved, NULL as saved_at
-			FROM playlists p
-			WHERE p.user_id = $1 AND ($2 = 0 OR p.id < $2)
-		),
-		saved_playlists AS (
-			SELECT p.id, p.user_id, p.title, p.changeable_id, p.image, p.created_at, p.updated_at,
-				true as is_saved, usp.added_at as saved_at
-			FROM playlists p
-			JOIN user_saved_playlists usp ON p.id = usp.playlist_id
-			WHERE usp.user_id = $1 AND ($2 = 0 OR p.id < $2)
-		)
-		SELECT * FROM my_playlists
-		UNION ALL
-		SELECT * FROM saved_playlists
-		ORDER BY COALESCE(saved_at, created_at) DESC
-		LIMIT $3
-	`
-
-	rows, err := r.postgres.QueryContext(ctx, query, userID, lastID, take)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			r.log.Error("Failed to close rows", "error", err)
-		}
-	}()
-
-	var playlists []*PlaylistWithSavedModel
-
-	for rows.Next() {
-		var playlist PlaylistWithSavedModel
-		var createdAt, updatedAt time.Time
-		var savedAt sql.NullTime
-
-		err := rows.Scan(
-			&playlist.ID,
-			&playlist.UserID,
-			&playlist.Title,
-			&playlist.ChangeableID,
-			&playlist.Image,
-			&createdAt,
-			&updatedAt,
-			&playlist.IsSaved,
-			&savedAt,
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		playlist.CreatedAt = createdAt
-		playlist.UpdatedAt = updatedAt
-		if savedAt.Valid {
-			playlist.SavedAt = &savedAt.Time
-		}
-
-		playlists = append(playlists, &playlist)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return playlists, nil
-}
-
-func (r *PlaylistRepo) GetManySaved(ctx context.Context, userID int64, take int, lastID int64) ([]*UserSavedPlaylistModel, error) {
-	query := `
-		SELECT usp.user_id, usp.playlist_id, usp.added_at
-		FROM user_saved_playlists usp
-		WHERE usp.user_id = $1 AND ($2 = 0 OR usp.playlist_id < $2)
-		ORDER BY usp.added_at DESC
-		LIMIT $3
-	`
-
-	rows, err := r.postgres.QueryContext(ctx, query, userID, lastID, take)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err := rows.Close()
-		if err != nil {
-			r.log.Error("Failed to close rows", "error", err)
-		}
-	}()
-
-	var savedPlaylists []*UserSavedPlaylistModel
-	for rows.Next() {
-		model := &UserSavedPlaylistModel{}
-		err := rows.Scan(&model.UserID, &model.PlaylistID, &model.AddedAt)
-		if err != nil {
-			return nil, err
-		}
-		savedPlaylists = append(savedPlaylists, model)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return savedPlaylists, nil
 }

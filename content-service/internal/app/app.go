@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,12 +15,12 @@ import (
 	"github.com/ocenb/music-go/content-service/internal/clients/searchclient"
 	"github.com/ocenb/music-go/content-service/internal/clients/userclient"
 	"github.com/ocenb/music-go/content-service/internal/config"
+	"github.com/ocenb/music-go/content-service/internal/modules/all"
 	"github.com/ocenb/music-go/content-service/internal/modules/file"
 	"github.com/ocenb/music-go/content-service/internal/modules/history"
 	"github.com/ocenb/music-go/content-service/internal/modules/playlist"
 	"github.com/ocenb/music-go/content-service/internal/modules/playlist/playlisttracks"
 	"github.com/ocenb/music-go/content-service/internal/modules/track"
-	"github.com/ocenb/music-go/content-service/internal/utils"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -31,58 +30,14 @@ type App struct {
 	log    *slog.Logger
 }
 
-func New(postgres *sql.DB, cfg *config.Config, log *slog.Logger) *App {
-	cloudinary, err := cloudinaryclient.NewCloudinaryClient(
-		cfg.CLOUDINARY_CLOUD_NAME,
-		cfg.CLOUDINARY_API_KEY,
-		cfg.CLOUDINARY_API_SECRET,
-	)
-	if err != nil {
-		log.Error("Failed to create cloudinary service", utils.ErrLog(err))
-		os.Exit(1)
-	}
-
-	searchServiceClient, err := searchclient.New(cfg)
-	if err != nil {
-		log.Error("Failed to connect to search service", utils.ErrLog(err))
-		os.Exit(1)
-	}
-	defer func() {
-		log.Info("Closing search service connection")
-		err := searchServiceClient.Conn.Close()
-		if err != nil {
-			log.Error("Failed to close search service connection", utils.ErrLog(err))
-		}
-	}()
-
-	userServiceClient, err := userclient.New(cfg)
-	if err != nil {
-		log.Error("Failed to connect to user service", utils.ErrLog(err))
-		os.Exit(1)
-	}
-	defer func() {
-		log.Info("Closing user service connection")
-		err := userServiceClient.Conn.Close()
-		if err != nil {
-			log.Error("Failed to close user service connection", utils.ErrLog(err))
-		}
-	}()
-
-	notificationClient, err := notificationclient.NewNotificationClient(cfg.KafkaBrokers)
-	if err != nil {
-		log.Error("Failed to create notification client", utils.ErrLog(err))
-		os.Exit(1)
-	}
-	defer func() {
-		log.Info("Closing notification client")
-		err := notificationClient.Close()
-		if err != nil {
-			log.Error("Failed to close notification client", utils.ErrLog(err))
-		}
-	}()
-
+func New(postgres *sql.DB, cfg *config.Config, log *slog.Logger, cloudinary cloudinaryclient.CloudinaryClientInterface,
+	searchServiceClient *searchclient.SearchServiceClient, userServiceClient *userclient.UserServiceClient,
+	notificationClient notificationclient.NotificationClientInterface,
+) *App {
 	fileService := file.NewFileService(
 		cloudinary,
+		log,
+		cfg,
 	)
 	trackRepo := track.NewTrackRepo(postgres, log)
 	trackService := track.NewTrackService(log, trackRepo, fileService, searchServiceClient, notificationClient)
@@ -94,8 +49,11 @@ func New(postgres *sql.DB, cfg *config.Config, log *slog.Logger) *App {
 	playlistTracksService := playlisttracks.NewPlaylistTracksService(log, playlistTracksRepo, playlistRepo, trackRepo)
 	playlistTracksHandler := playlisttracks.NewHandlers(playlistTracksService)
 	historyRepo := history.NewHistoryRepo(postgres, log)
-	historyService := history.NewHistoryService(log, historyRepo)
+	historyService := history.NewHistoryService(log, historyRepo, trackService)
 	historyHandler := history.NewHistoryHandler(historyService)
+	allRepo := all.NewAllRepo(postgres, log)
+	allService := all.NewAllService(log, allRepo, fileService)
+	allHandler := all.NewAllHandler(allService)
 
 	if cfg.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
@@ -106,12 +64,14 @@ func New(postgres *sql.DB, cfg *config.Config, log *slog.Logger) *App {
 	router.Use(loggerMiddleware(log))
 
 	api := router.Group("/api")
+	apiWithoutAuth := router.Group("/api")
 	api.Use(authMiddleware(userServiceClient))
 
 	trackHandler.RegisterHandlers(api)
 	playlistHandler.RegisterHandlers(api)
 	playlistTracksHandler.RegisterHandlers(api)
 	historyHandler.RegisterHandlers(api)
+	allHandler.RegisterHandlers(apiWithoutAuth)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
@@ -166,7 +126,7 @@ func authMiddleware(userServiceClient *userclient.UserServiceClient) gin.Handler
 	return func(c *gin.Context) {
 		accessToken := c.GetHeader("Authorization")
 		if accessToken == "" {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
 		outMD := metadata.New(map[string]string{
@@ -176,12 +136,10 @@ func authMiddleware(userServiceClient *userclient.UserServiceClient) gin.Handler
 
 		res, err := userServiceClient.Client.CheckAuth(outCtx, &emptypb.Empty{})
 		if err != nil {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		c.Set("userID", res.User.Id)
-		c.Set("username", res.User.Username)
-		c.Set("email", res.User.Email)
+		c.Set("user", res.User)
 
 		c.Next()
 	}

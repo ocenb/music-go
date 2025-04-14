@@ -30,6 +30,7 @@ type Config struct {
 	DBSSLMode            string        `env:"POSTGRES_SSL_MODE" env-default:"disable"`
 	DatabaseUrl          string
 	SearchServiceAddress string   `env:"SEARCH_SERVICE_ADDRESS" env-required:"true"`
+	ContentServiceURL    string   `env:"CONTENT_SERVICE_URL" env-required:"true"`
 	KafkaBrokers         []string `env:"KAFKA_BROKERS" env-required:"true"`
 }
 

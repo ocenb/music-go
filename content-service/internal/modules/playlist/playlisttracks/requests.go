@@ -1,22 +1,22 @@
 package playlisttracks
 
-type PlaylistTrackIDsRequest struct {
+type PlaylistTrackIDsUri struct {
 	PlaylistID int64 `uri:"playlistId" binding:"required"`
 	TrackID    int64 `uri:"trackId" binding:"required"`
 }
 
-type PlaylistRequest struct {
+type PlaylistUri struct {
 	PlaylistID int64 `uri:"playlistId" binding:"required"`
 }
 
-type GetManyRequest struct {
+type GetManyForm struct {
 	Take int `form:"take" binding:"omitempty,min=1"`
 }
 
-type AddTrackRequest struct {
+type AddTrackJSON struct {
 	Position int `json:"position" binding:"omitempty,min=1"`
 }
 
-type UpdatePositionRequest struct {
+type UpdatePositionJSON struct {
 	Position int `json:"position" binding:"required,min=1"`
 }

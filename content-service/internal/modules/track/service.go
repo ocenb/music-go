@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log/slog"
 	"mime/multipart"
 
@@ -164,11 +165,11 @@ func (s *TrackService) Delete(ctx context.Context, userID, trackID int64) error 
 			return err
 		}
 
-		_, err = s.searchClient.Client.DeleteTrack(txCtx, &searchservice.DeleteRequest{
+		deleteResp, err := s.searchClient.Client.DeleteTrack(txCtx, &searchservice.DeleteRequest{
 			Id: trackID,
 		})
-		if err != nil {
-			return err
+		if err != nil || !deleteResp.Success {
+			return fmt.Errorf("failed to delete track in search service: %w", err)
 		}
 
 		err = s.fileService.DeleteFile(txCtx, track.Audio, file.AudioCategory)
@@ -205,6 +206,14 @@ func (s *TrackService) ChangeTitle(ctx context.Context, userID, trackID int64, t
 		return err
 	}
 
+	updateResp, err := s.searchClient.Client.UpdateTrack(ctx, &searchservice.AddOrUpdateRequest{
+		Id:   trackID,
+		Name: title,
+	})
+	if err != nil || !updateResp.Success {
+		return fmt.Errorf("failed to update track in search service: %w", err)
+	}
+
 	return nil
 }
 
@@ -237,6 +246,14 @@ func (s *TrackService) ChangeChangeableId(ctx context.Context, userID, trackID i
 }
 
 func (s *TrackService) ChangeImage(ctx context.Context, userID, trackID int64, imageFile *multipart.FileHeader) error {
+	track, err := s.trackRepo.GetByID(ctx, trackID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrTrackNotFound
+		}
+		return err
+	}
+
 	hasPermission, err := s.trackRepo.CheckPermission(ctx, userID, trackID)
 	if err != nil {
 		return err
@@ -252,6 +269,10 @@ func (s *TrackService) ChangeImage(ctx context.Context, userID, trackID int64, i
 	}
 
 	if err := s.trackRepo.ChangeImage(ctx, trackID, imageName); err != nil {
+		return err
+	}
+
+	if err := s.fileService.DeleteFile(ctx, track.Image, file.ImagesCategory); err != nil {
 		return err
 	}
 

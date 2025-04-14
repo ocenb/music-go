@@ -13,7 +13,7 @@ import (
 
 type PlaylistServiceInterface interface {
 	GetOne(ctx context.Context, currentUserID int64, username, changeableID string) (*PlaylistWithSavedModel, error)
-	GetMany(ctx context.Context, currentUserID, userID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error)
+	GetMany(ctx context.Context, userID int64, currentUserID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error)
 	GetManyWithSaved(ctx context.Context, currentUserID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error)
 	Create(ctx context.Context, userID int64, username, title, changeableID string, imageFile *multipart.FileHeader) (*PlaylistModel, error)
 	Delete(ctx context.Context, userID, playlistID int64) error
@@ -50,7 +50,7 @@ func (s *PlaylistService) GetOne(ctx context.Context, currentUserID int64, usern
 	return playlist, nil
 }
 
-func (s *PlaylistService) GetMany(ctx context.Context, currentUserID, userID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error) {
+func (s *PlaylistService) GetMany(ctx context.Context, userID int64, currentUserID int64, take int, lastID int64) ([]*PlaylistWithSavedModel, error) {
 	playlists, err := s.playlistRepo.GetMany(ctx, userID, currentUserID, take, lastID)
 	if err != nil {
 		return nil, err
@@ -188,6 +188,10 @@ func (s *PlaylistService) ChangeImage(ctx context.Context, userID, playlistID in
 	}
 
 	if err := s.playlistRepo.ChangeImage(ctx, playlistID, imageName); err != nil {
+		return err
+	}
+
+	if err := s.fileService.DeleteFile(ctx, imageName, file.ImagesCategory); err != nil {
 		return err
 	}
 

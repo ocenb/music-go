@@ -11,11 +11,11 @@ CREATE TABLE IF NOT EXISTS tracks (
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT unique_user_changeable_id UNIQUE (user_id, changeable_id),
-    CONSTRAINT unique_user_title UNIQUE (user_id, title),
+    CONSTRAINT unique_user_title UNIQUE (user_id, title)
 );
 
 CREATE INDEX IF NOT EXISTS idx_tracks_user_id ON tracks(user_id);
-CREATE INDEX IF NOT EXISTS idx_tracks_username ON tracks(username);
+CREATE INDEX IF NOT EXISTS idx_tracks_username_changeable_id ON tracks(username, changeable_id);
 
 CREATE TABLE IF NOT EXISTS playlists (
     id SERIAL PRIMARY KEY,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS playlists (
 );
 
 CREATE INDEX IF NOT EXISTS idx_playlists_user_id ON playlists(user_id);
-CREATE INDEX IF NOT EXISTS idx_playlists_username ON playlists(username);
+CREATE INDEX IF NOT EXISTS idx_playlists_username_changeable_id ON playlists(username, changeable_id);
 
 CREATE TABLE IF NOT EXISTS user_liked_tracks (
     user_id INT NOT NULL,

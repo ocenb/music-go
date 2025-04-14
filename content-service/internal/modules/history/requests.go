@@ -1,9 +1,9 @@
 package history
 
-type GetRequest struct {
-	Take int64 `uri:"take" binding:"omitempty,min=1"`
+type GetUri struct {
+	Take int64 `form:"take" binding:"omitempty,min=1"`
 }
 
-type AddRequest struct {
+type AddUri struct {
 	TrackID int64 `uri:"trackId" binding:"required"`
 }

@@ -11,11 +11,10 @@ import (
 	"github.com/ocenb/music-protos/gen/userservice"
 )
 
-type UserKey struct{}
 type txKey struct{}
 
 func GetInfoFromContext(c *gin.Context) (*userservice.UserPrivateModel, error) {
-	user, ok := c.Value(UserKey{}).(*userservice.UserPrivateModel)
+	user, ok := c.Value("user").(*userservice.UserPrivateModel)
 	if !ok {
 		return nil, errors.New("failed to get user from context")
 	}

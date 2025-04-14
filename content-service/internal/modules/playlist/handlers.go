@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ocenb/music-go/content-service/internal/modules/file"
 	"github.com/ocenb/music-go/content-service/internal/utils"
 )
 
@@ -33,7 +34,7 @@ func NewPlaylistHandler(playlistService PlaylistServiceInterface) PlaylistHandle
 }
 
 func (h *PlaylistHandler) getOne(c *gin.Context) {
-	var params GetOneRequest
+	var params GetOneForm
 	if err := c.ShouldBindQuery(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -59,7 +60,7 @@ func (h *PlaylistHandler) getOne(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) getMany(c *gin.Context) {
-	var params GetManyRequest
+	var params GetManyForm
 	if err := c.ShouldBindQuery(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -71,7 +72,7 @@ func (h *PlaylistHandler) getMany(c *gin.Context) {
 		return
 	}
 
-	playlists, err := h.playlistService.GetMany(c.Request.Context(), user.Id, params.UserID, params.Take, params.LastID)
+	playlists, err := h.playlistService.GetMany(c.Request.Context(), params.UserID, user.Id, params.Take, params.LastID)
 	if err != nil {
 		utils.InternalError(c, err)
 		return
@@ -81,7 +82,7 @@ func (h *PlaylistHandler) getMany(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) getManyWithSaved(c *gin.Context) {
-	var params GetManyRequest
+	var params GetManyWithSavedForm
 	if err := c.ShouldBindQuery(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -103,7 +104,7 @@ func (h *PlaylistHandler) getManyWithSaved(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) create(c *gin.Context) {
-	var request CreatePlaylistRequest
+	var request CreatePlaylistForm
 	if err := c.ShouldBind(&request); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -138,13 +139,13 @@ func (h *PlaylistHandler) create(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) changeTitle(c *gin.Context) {
-	var params ChangeTitleRequest
+	var params ChangeTitleUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var request ChangeTitleRequest
+	var request ChangeTitleForm
 	if err := c.ShouldBind(&request); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -179,13 +180,13 @@ func (h *PlaylistHandler) changeTitle(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) changeChangeableId(c *gin.Context) {
-	var params ChangeChangeableIdRequest
+	var params ChangeChangeableIdUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var request ChangeChangeableIdRequest
+	var request ChangeChangeableIdForm
 	if err := c.ShouldBind(&request); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -220,13 +221,13 @@ func (h *PlaylistHandler) changeChangeableId(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) changeImage(c *gin.Context) {
-	var params ChangeImageRequest
+	var params ChangeImageUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var request ChangeImageRequest
+	var request ChangeImageForm
 	if err := c.ShouldBind(&request); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -249,7 +250,7 @@ func (h *PlaylistHandler) changeImage(c *gin.Context) {
 			utils.NotFoundError(c, err)
 		case errors.Is(err, ErrPermissionDenied):
 			utils.PermissionDeniedError(c, err)
-		case errors.Is(err, ErrInvalidImageFormat):
+		case errors.Is(err, file.ErrInvalidImageFormat):
 			utils.BadRequestError(c, err)
 		default:
 			utils.InternalError(c, err)
@@ -261,7 +262,7 @@ func (h *PlaylistHandler) changeImage(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) delete(c *gin.Context) {
-	var params DeleteRequest
+	var params DeleteUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -289,7 +290,7 @@ func (h *PlaylistHandler) delete(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) savePlaylist(c *gin.Context) {
-	var params GetByPlaylistIDRequest
+	var params GetByPlaylistIDUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -317,7 +318,7 @@ func (h *PlaylistHandler) savePlaylist(c *gin.Context) {
 }
 
 func (h *PlaylistHandler) removeFromSaved(c *gin.Context) {
-	var params GetByPlaylistIDRequest
+	var params GetByPlaylistIDUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return

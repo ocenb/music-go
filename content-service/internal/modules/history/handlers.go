@@ -1,9 +1,11 @@
 package history
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ocenb/music-go/content-service/internal/modules/track"
 	"github.com/ocenb/music-go/content-service/internal/utils"
 )
 
@@ -25,8 +27,8 @@ func NewHistoryHandler(historyService HistoryServiceInterface) HistoryHandlersIn
 }
 
 func (h *HistoryHandlers) get(c *gin.Context) {
-	var params GetRequest
-	if err := c.ShouldBindUri(&params); err != nil {
+	var params GetUri
+	if err := c.ShouldBindQuery(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
@@ -47,7 +49,7 @@ func (h *HistoryHandlers) get(c *gin.Context) {
 }
 
 func (h *HistoryHandlers) add(c *gin.Context) {
-	var params AddRequest
+	var params AddUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -61,6 +63,10 @@ func (h *HistoryHandlers) add(c *gin.Context) {
 
 	err = h.historyService.Add(c.Request.Context(), user.Id, params.TrackID)
 	if err != nil {
+		if errors.Is(err, track.ErrTrackNotFound) {
+			utils.NotFoundError(c, err)
+			return
+		}
 		utils.InternalError(c, err)
 		return
 	}
@@ -87,6 +93,6 @@ func (h *HistoryHandlers) clear(c *gin.Context) {
 func (h *HistoryHandlers) RegisterHandlers(router *gin.RouterGroup) {
 	historyRouter := router.Group("/history")
 	historyRouter.GET("", h.get)
-	historyRouter.POST("", h.add)
+	historyRouter.POST("/:trackId", h.add)
 	historyRouter.DELETE("", h.clear)
 }

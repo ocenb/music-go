@@ -20,6 +20,9 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
     networks:
       - music-go-network
 
@@ -57,8 +60,26 @@ services:
     networks:
       - music-go-network
 
+  kafka-init:
+    image: confluentinc/cp-kafka:latest
+    container_name: notification-service-kafka-init
+    depends_on:
+      - kafka
+    command: >
+      bash -c "echo 'Waiting for Kafka to be ready...' &&
+      cub kafka-ready -b kafka:19092 1 120 &&
+      echo 'Creating topic email-notifications...' &&
+      kafka-topics --create --if-not-exists --topic email-notifications --bootstrap-server kafka:19092 --partitions 1 --replication-factor 1 &&
+      echo 'Topic created.'"
+    networks:
+      - music-go-network
+
 volumes:
   kafka_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_log:
     driver: local
 
 networks:

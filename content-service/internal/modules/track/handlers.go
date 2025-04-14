@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ocenb/music-go/content-service/internal/modules/file"
 	"github.com/ocenb/music-go/content-service/internal/utils"
 )
 
@@ -36,7 +37,7 @@ func NewTrackHandler(trackService TrackServiceInterface) TrackHandlerInterface {
 }
 
 func (h *TrackHandler) getOneByID(c *gin.Context) {
-	var params GetByTrackIDRequest
+	var params GetByTrackIDUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -62,7 +63,7 @@ func (h *TrackHandler) getOneByID(c *gin.Context) {
 }
 
 func (h *TrackHandler) getOne(c *gin.Context) {
-	var params GetOneRequest
+	var params GetOneForm
 	if err := c.ShouldBindQuery(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -88,7 +89,7 @@ func (h *TrackHandler) getOne(c *gin.Context) {
 }
 
 func (h *TrackHandler) getMany(c *gin.Context) {
-	var params GetManyRequest
+	var params GetManyForm
 	if err := c.ShouldBindQuery(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -110,7 +111,7 @@ func (h *TrackHandler) getMany(c *gin.Context) {
 }
 
 func (h *TrackHandler) getManyPopular(c *gin.Context) {
-	var params GetManyRequest
+	var params GetManyForm
 	if err := c.ShouldBindQuery(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -132,7 +133,7 @@ func (h *TrackHandler) getManyPopular(c *gin.Context) {
 }
 
 func (h *TrackHandler) upload(c *gin.Context) {
-	var request UploadTrackRequest
+	var request UploadTrackForm
 	if err := c.ShouldBind(&request); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -169,7 +170,7 @@ func (h *TrackHandler) upload(c *gin.Context) {
 }
 
 func (h *TrackHandler) addPlay(c *gin.Context) {
-	var params AddPlayRequest
+	var params AddPlayUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -188,13 +189,13 @@ func (h *TrackHandler) addPlay(c *gin.Context) {
 }
 
 func (h *TrackHandler) changeTitle(c *gin.Context) {
-	var params ChangeTitleRequest
+	var params ChangeTitleUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var request ChangeTitleRequest
+	var request ChangeTitleForm
 	if err := c.ShouldBind(&request); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -229,13 +230,13 @@ func (h *TrackHandler) changeTitle(c *gin.Context) {
 }
 
 func (h *TrackHandler) changeChangeableId(c *gin.Context) {
-	var params ChangeChangeableIdRequest
+	var params ChangeChangeableIdUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var request ChangeChangeableIdRequest
+	var request ChangeChangeableIdForm
 	if err := c.ShouldBind(&request); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -270,13 +271,13 @@ func (h *TrackHandler) changeChangeableId(c *gin.Context) {
 }
 
 func (h *TrackHandler) changeImage(c *gin.Context) {
-	var params ChangeImageRequest
+	var params ChangeImageUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var request ChangeImageRequest
+	var request ChangeImageForm
 	if err := c.ShouldBind(&request); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -299,7 +300,9 @@ func (h *TrackHandler) changeImage(c *gin.Context) {
 			utils.NotFoundError(c, err)
 		case errors.Is(err, ErrPermissionDenied):
 			utils.PermissionDeniedError(c, err)
-		case errors.Is(err, ErrInvalidImageFormat):
+		case errors.Is(err, file.ErrInvalidImageFormat):
+			utils.BadRequestError(c, err)
+		case errors.Is(err, file.ErrImageFileTooLarge):
 			utils.BadRequestError(c, err)
 		default:
 			utils.InternalError(c, err)
@@ -311,7 +314,7 @@ func (h *TrackHandler) changeImage(c *gin.Context) {
 }
 
 func (h *TrackHandler) delete(c *gin.Context) {
-	var params DeleteRequest
+	var params DeleteUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -355,7 +358,7 @@ func (h *TrackHandler) getManyLiked(c *gin.Context) {
 }
 
 func (h *TrackHandler) addToLiked(c *gin.Context) {
-	var params GetByTrackIDRequest
+	var params GetByTrackIDUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -380,7 +383,7 @@ func (h *TrackHandler) addToLiked(c *gin.Context) {
 }
 
 func (h *TrackHandler) removeFromLiked(c *gin.Context) {
-	var params GetByTrackIDRequest
+	var params GetByTrackIDUri
 	if err := c.ShouldBindUri(&params); err != nil {
 		utils.BadRequestError(c, err)
 		return

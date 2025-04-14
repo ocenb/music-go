@@ -102,7 +102,6 @@ func (r *PlaylistTracksRepo) GetMany(ctx context.Context, playlistID, currentUse
 		trackModel.CreatedAt = createdAt
 		trackModel.UpdatedAt = updatedAt
 
-		// Заполняем необходимые поля из trackModel
 		trackInPlaylist.PlaylistID = playlistID
 		trackInPlaylist.Title = trackModel.Title
 		trackInPlaylist.Artist = trackModel.Username
@@ -172,7 +171,6 @@ func (r *PlaylistTracksRepo) Remove(ctx context.Context, playlistID, trackID int
 		return err
 	}
 
-	// После удаления уменьшаем позиции треков, которые были после удаленного
 	err = r.DecrementPositions(ctx, playlistID, position)
 	return err
 }

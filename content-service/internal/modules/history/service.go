@@ -3,6 +3,8 @@ package history
 import (
 	"context"
 	"log/slog"
+
+	"github.com/ocenb/music-go/content-service/internal/modules/track"
 )
 
 type HistoryServiceInterface interface {
@@ -12,14 +14,16 @@ type HistoryServiceInterface interface {
 }
 
 type HistoryService struct {
-	log         *slog.Logger
-	historyRepo HistoryRepoInterface
+	log          *slog.Logger
+	historyRepo  HistoryRepoInterface
+	trackService track.TrackServiceInterface
 }
 
-func NewHistoryService(log *slog.Logger, historyRepo HistoryRepoInterface) HistoryServiceInterface {
+func NewHistoryService(log *slog.Logger, historyRepo HistoryRepoInterface, trackService track.TrackServiceInterface) HistoryServiceInterface {
 	return &HistoryService{
-		log:         log,
-		historyRepo: historyRepo,
+		log:          log,
+		historyRepo:  historyRepo,
+		trackService: trackService,
 	}
 }
 
@@ -33,7 +37,11 @@ func (s *HistoryService) Get(ctx context.Context, currentUserID int64, take int6
 }
 
 func (s *HistoryService) Add(ctx context.Context, currentUserID, trackID int64) error {
-	err := s.historyRepo.Add(ctx, currentUserID, trackID)
+	_, err := s.trackService.GetOneById(ctx, currentUserID, trackID)
+	if err != nil {
+		return err
+	}
+	err = s.historyRepo.Add(ctx, currentUserID, trackID)
 	if err != nil {
 		return err
 	}

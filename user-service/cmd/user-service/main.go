@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ocenb/music-go/user-service/internal/app"
+	"github.com/ocenb/music-go/user-service/internal/clients/contentservice"
 	"github.com/ocenb/music-go/user-service/internal/clients/notificationclient"
 	"github.com/ocenb/music-go/user-service/internal/clients/searchservice"
 	"github.com/ocenb/music-go/user-service/internal/config"
@@ -71,12 +72,14 @@ func main() {
 		}
 	}()
 
+	contentServiceClient := contentservice.New(cfg, log)
+
 	tokenRepo := tokenrepo.NewTokenRepo(postgres)
 	userRepo := userrepo.NewUserRepo(postgres)
 	authRepo := authrepo.NewAuthRepo(postgres)
 
 	tokenService := token.NewTokenService(cfg, log, tokenRepo)
-	userService := user.NewUserService(cfg, log, userRepo, searchServiceClient)
+	userService := user.NewUserService(cfg, log, userRepo, searchServiceClient, contentServiceClient)
 	authService := auth.NewAuthService(cfg, log, userService, tokenService, authRepo, notificationClient)
 
 	go runTokenCleanup(tokenService, log)

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/ocenb/music-go/user-service/internal/clients/contentservice"
 	searchclient "github.com/ocenb/music-go/user-service/internal/clients/searchservice"
 	"github.com/ocenb/music-go/user-service/internal/config"
 	"github.com/ocenb/music-go/user-service/internal/models"
@@ -35,18 +36,20 @@ type UserServiceInterface interface {
 }
 
 type UserService struct {
-	cfg                 *config.Config
-	userRepo            userrepo.UserRepoInterface
-	log                 *slog.Logger
-	searchServiceClient *searchclient.SearchServiceClient
+	cfg                  *config.Config
+	userRepo             userrepo.UserRepoInterface
+	log                  *slog.Logger
+	searchServiceClient  *searchclient.SearchServiceClient
+	contentServiceClient *contentservice.ContentServiceClient
 }
 
-func NewUserService(cfg *config.Config, log *slog.Logger, userRepo userrepo.UserRepoInterface, searchServiceClient *searchclient.SearchServiceClient) UserServiceInterface {
+func NewUserService(cfg *config.Config, log *slog.Logger, userRepo userrepo.UserRepoInterface, searchServiceClient *searchclient.SearchServiceClient, contentServiceClient *contentservice.ContentServiceClient) UserServiceInterface {
 	return &UserService{
-		cfg:                 cfg,
-		userRepo:            userRepo,
-		log:                 log,
-		searchServiceClient: searchServiceClient,
+		cfg:                  cfg,
+		userRepo:             userRepo,
+		log:                  log,
+		searchServiceClient:  searchServiceClient,
+		contentServiceClient: contentServiceClient,
 	}
 }
 
@@ -208,8 +211,10 @@ func (s *UserService) Delete(ctx context.Context, userID int64) error {
 		return ErrUserNotFound
 	}
 
-	// TODO
-	// Delete all user content
+	if err := s.contentServiceClient.DeleteUserContent(ctx, userID); err != nil {
+		s.log.Error("Failed to delete user content", slog.Int64("user_id", userID), utils.ErrLog(err))
+		return utils.InternalError(err, "failed to delete user content")
+	}
 
 	err := storage.WithTransaction(ctx, s.userRepo, func(txCtx context.Context) error {
 		if err := s.userRepo.Delete(txCtx, userID); err != nil {

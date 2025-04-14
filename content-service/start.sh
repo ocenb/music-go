@@ -12,4 +12,4 @@ echo "PostgreSQL is up - executing migrations"
 echo "Migrations completed successfully"
 
 echo "Starting the application..."
-exec /app/user-service
+exec /app/content-service

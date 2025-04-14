@@ -33,13 +33,13 @@ func (h *PlaylistTracksHandlers) GetMany(c *gin.Context) {
 		return
 	}
 
-	var playlistReq PlaylistRequest
+	var playlistReq PlaylistUri
 	if err := c.ShouldBindUri(&playlistReq); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var getManyReq GetManyRequest
+	var getManyReq GetManyForm
 	if err := c.ShouldBindQuery(&getManyReq); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -67,13 +67,13 @@ func (h *PlaylistTracksHandlers) Add(c *gin.Context) {
 		return
 	}
 
-	var playlistTrackIDsReq PlaylistTrackIDsRequest
+	var playlistTrackIDsReq PlaylistTrackIDsUri
 	if err := c.ShouldBindUri(&playlistTrackIDsReq); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var addTrackReq AddTrackRequest
+	var addTrackReq AddTrackJSON
 	if err := c.ShouldBindJSON(&addTrackReq); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -107,13 +107,13 @@ func (h *PlaylistTracksHandlers) UpdatePosition(c *gin.Context) {
 		return
 	}
 
-	var playlistTrackIDsReq PlaylistTrackIDsRequest
+	var playlistTrackIDsReq PlaylistTrackIDsUri
 	if err := c.ShouldBindUri(&playlistTrackIDsReq); err != nil {
 		utils.BadRequestError(c, err)
 		return
 	}
 
-	var updatePositionReq UpdatePositionRequest
+	var updatePositionReq UpdatePositionJSON
 	if err := c.ShouldBindJSON(&updatePositionReq); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -147,7 +147,7 @@ func (h *PlaylistTracksHandlers) Remove(c *gin.Context) {
 		return
 	}
 
-	var playlistTrackIDsReq PlaylistTrackIDsRequest
+	var playlistTrackIDsReq PlaylistTrackIDsUri
 	if err := c.ShouldBindUri(&playlistTrackIDsReq); err != nil {
 		utils.BadRequestError(c, err)
 		return
@@ -173,8 +173,8 @@ func (h *PlaylistTracksHandlers) Remove(c *gin.Context) {
 
 func (h *PlaylistTracksHandlers) RegisterHandlers(router *gin.RouterGroup) {
 	playlistTracksRouter := router.Group("/playlist-tracks")
-	playlistTracksRouter.GET("", h.GetMany)
-	playlistTracksRouter.POST("", h.Add)
-	playlistTracksRouter.PUT("/:playlistId/position", h.UpdatePosition)
+	playlistTracksRouter.GET("/:playlistId", h.GetMany)
+	playlistTracksRouter.POST("/:playlistId/tracks/:trackId", h.Add)
+	playlistTracksRouter.PUT("/:playlistId/tracks/:trackId/position", h.UpdatePosition)
 	playlistTracksRouter.DELETE("/:playlistId/tracks/:trackId", h.Remove)
 }

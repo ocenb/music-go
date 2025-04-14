@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nfnt/resize"
 	"github.com/ocenb/music-go/content-service/internal/clients/cloudinaryclient"
+	"github.com/ocenb/music-go/content-service/internal/config"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 )
 
@@ -41,17 +42,26 @@ type FileServiceInterface interface {
 type FileService struct {
 	cloudinary cloudinaryclient.CloudinaryClientInterface
 	log        *slog.Logger
+	cfg        *config.Config
 }
 
 func NewFileService(
 	cloudinary cloudinaryclient.CloudinaryClientInterface,
+	log *slog.Logger,
+	cfg *config.Config,
 ) *FileService {
 	return &FileService{
 		cloudinary: cloudinary,
+		log:        log,
+		cfg:        cfg,
 	}
 }
 
 func (s *FileService) SaveAudio(ctx context.Context, file *multipart.FileHeader) (*AudioResult, error) {
+	if file.Size > s.cfg.AudioFileLimit {
+		return nil, ErrAudioFileTooLarge
+	}
+
 	fileName := uuid.New().String()
 	fileExt := strings.ToLower(filepath.Ext(file.Filename))
 
@@ -92,7 +102,7 @@ func (s *FileService) SaveAudio(ctx context.Context, file *multipart.FileHeader)
 		return nil, fmt.Errorf("failed to get audio duration: %w", err)
 	}
 
-	if err := s.cloudinary.Upload(ctx, outputFilePath, fileName, "raw", "audio"); err != nil {
+	if err := s.cloudinary.Upload(ctx, outputFilePath, fileName, "video", "audio"); err != nil {
 		return nil, fmt.Errorf("failed to upload to cloudinary: %w", err)
 	}
 
@@ -103,6 +113,10 @@ func (s *FileService) SaveAudio(ctx context.Context, file *multipart.FileHeader)
 }
 
 func (s *FileService) SaveImage(ctx context.Context, file *multipart.FileHeader) (string, error) {
+	if file.Size > s.cfg.ImageFileLimit {
+		return "", ErrImageFileTooLarge
+	}
+
 	fileName := uuid.New().String()
 	fileName250 := fmt.Sprintf("%s_250x250", fileName)
 	fileName50 := fmt.Sprintf("%s_50x50", fileName)
@@ -110,12 +124,12 @@ func (s *FileService) SaveImage(ctx context.Context, file *multipart.FileHeader)
 	filePath250 := filepath.Join(tempDir, fmt.Sprintf("%s.jpg", fileName250))
 	filePath50 := filepath.Join(tempDir, fmt.Sprintf("%s.jpg", fileName50))
 
-	src, err := file.Open()
+	src250, err := file.Open()
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer func() {
-		err := src.Close()
+		err := src250.Close()
 		if err != nil {
 			s.log.Error("Failed to close file", "error", err)
 		}
@@ -132,13 +146,24 @@ func (s *FileService) SaveImage(ctx context.Context, file *multipart.FileHeader)
 		}
 	}()
 
-	if err := s.resize(src, out250, 250, 250); err != nil {
+	if err := s.resize(src250, out250, 250, 250); err != nil {
 		return "", fmt.Errorf("failed to process 250x250 image: %w", err)
 	}
 	defer func() {
 		err := os.Remove(filePath250)
 		if err != nil {
 			s.log.Error("Failed to remove file", "error", err)
+		}
+	}()
+
+	src50, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+	defer func() {
+		err := src50.Close()
+		if err != nil {
+			s.log.Error("Failed to close file", "error", err)
 		}
 	}()
 
@@ -153,7 +178,7 @@ func (s *FileService) SaveImage(ctx context.Context, file *multipart.FileHeader)
 		}
 	}()
 
-	if err := s.resize(src, out50, 50, 50); err != nil {
+	if err := s.resize(src50, out50, 50, 50); err != nil {
 		return "", fmt.Errorf("failed to process 50x50 image: %w", err)
 	}
 	defer func() {
@@ -176,14 +201,17 @@ func (s *FileService) SaveImage(ctx context.Context, file *multipart.FileHeader)
 
 func (s *FileService) DeleteFile(ctx context.Context, fileName string, category FileCategory) error {
 	if category == ImagesCategory {
-		if err := s.cloudinary.Delete(ctx, fmt.Sprintf("%s_250x250", fileName), "image"); err != nil {
+		s.log.Info("Deleting 250x250 image", "fileName", fileName)
+		if err := s.cloudinary.Delete(ctx, fmt.Sprintf("images/%s_250x250", fileName), "image"); err != nil {
 			return fmt.Errorf("failed to delete 250x250 image: %w", err)
 		}
-		if err := s.cloudinary.Delete(ctx, fmt.Sprintf("%s_50x50", fileName), "image"); err != nil {
+		s.log.Info("Deleting 50x50 image", "fileName", fileName)
+		if err := s.cloudinary.Delete(ctx, fmt.Sprintf("images/%s_50x50", fileName), "image"); err != nil {
 			return fmt.Errorf("failed to delete 50x50 image: %w", err)
 		}
 	} else {
-		if err := s.cloudinary.Delete(ctx, fileName, "raw"); err != nil {
+		s.log.Info("Deleting audio", "fileName", fileName)
+		if err := s.cloudinary.Delete(ctx, fmt.Sprintf("audio/%s", fileName), "video"); err != nil {
 			return fmt.Errorf("failed to delete audio file: %w", err)
 		}
 	}

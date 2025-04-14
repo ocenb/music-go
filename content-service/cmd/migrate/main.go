@@ -37,8 +37,15 @@ func main() {
 	}
 
 	fmt.Println("dbURL", dbURL)
+	migrationsURL := "file://" + migrationsPath
+	if migrationsPath[0] == '/' {
+		migrationsURL = "file://" + migrationsPath
+	}
+
+	fmt.Println("migrations URL:", migrationsURL)
+
 	m, err := migrate.New(
-		"file://"+migrationsPath,
+		migrationsURL,
 		dbURL,
 	)
 	if err != nil {

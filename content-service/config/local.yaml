@@ -3,3 +3,5 @@ log_handler: text
 db_max_open_conns: 10
 db_max_idle_conns: 5
 db_conn_max_lifetime: 1h
+image_file_limit: 10485760
+audio_file_limit: 52428800

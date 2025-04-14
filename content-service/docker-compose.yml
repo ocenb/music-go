@@ -6,6 +6,8 @@ services:
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - music-go-network
 
   app:
     build: .
@@ -13,11 +15,21 @@ services:
     env_file:
       - .env
     ports:
-      - "9089:9089"
+      - "3000:3000"
     depends_on:
       - postgres
     restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - music-go-network
 
 volumes:
   postgres_data:
     driver: local
+
+networks:
+  music-go-network:
+    name: music-go-network
+    external: true
