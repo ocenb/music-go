@@ -18,6 +18,9 @@ services:
       - .env
     ports:
       - "9090:9090"
+    volumes:
+      - ./.env:/app/.env
+      - ./config:/app/config
     depends_on:
       - postgres
     restart: always

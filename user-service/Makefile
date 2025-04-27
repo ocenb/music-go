@@ -1,13 +1,11 @@
-default: run
-
-run:
-	go run cmd/user-service/main.go
-
 fmt:
 	go fmt ./...
 
 lint:
 	golangci-lint run
+
+tidy:
+	go mod tidy
 
 migrate:
 	go run cmd/migrate/main.go
@@ -28,3 +26,12 @@ delete-test-users dtu:
 
 clear-db:
 	docker exec -i user-service-db psql -U postgres -d user-service-db < tests/suite/clear_db.sql
+
+up:
+	docker compose up -d
+
+up-build:
+	docker compose up -d --build
+
+down:
+	docker compose down

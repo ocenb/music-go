@@ -20,6 +20,7 @@ import (
 	"github.com/ocenb/music-go/content-service/internal/modules/history"
 	"github.com/ocenb/music-go/content-service/internal/modules/playlist"
 	"github.com/ocenb/music-go/content-service/internal/modules/playlist/playlisttracks"
+	"github.com/ocenb/music-go/content-service/internal/modules/search"
 	"github.com/ocenb/music-go/content-service/internal/modules/track"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -54,6 +55,7 @@ func New(postgres *sql.DB, cfg *config.Config, log *slog.Logger, cloudinary clou
 	allRepo := all.NewAllRepo(postgres, log)
 	allService := all.NewAllService(log, allRepo, fileService)
 	allHandler := all.NewAllHandler(allService)
+	searchHandler := search.NewSearchHandler(searchServiceClient)
 
 	if cfg.Environment == "prod" {
 		gin.SetMode(gin.ReleaseMode)
@@ -63,8 +65,8 @@ func New(postgres *sql.DB, cfg *config.Config, log *slog.Logger, cloudinary clou
 	router.Use(gin.Recovery())
 	router.Use(loggerMiddleware(log))
 
-	api := router.Group("/api")
-	apiWithoutAuth := router.Group("/api")
+	api := router.Group("/api/content")
+	apiWithoutAuth := router.Group("/api/content")
 	api.Use(authMiddleware(userServiceClient))
 
 	trackHandler.RegisterHandlers(api)
@@ -72,6 +74,7 @@ func New(postgres *sql.DB, cfg *config.Config, log *slog.Logger, cloudinary clou
 	playlistTracksHandler.RegisterHandlers(api)
 	historyHandler.RegisterHandlers(api)
 	allHandler.RegisterHandlers(apiWithoutAuth)
+	searchHandler.RegisterHandlers(api)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),

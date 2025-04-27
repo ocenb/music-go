@@ -28,7 +28,7 @@ https://github.com/ocenb/music-protos
 - PostgreSQL для хранения данных пользователей
 - gRPC для коммуникации с другими сервисами
 - Kafka для отправки уведомлений
-- Аутентификация с использованием JWT токенов
+- Аутентификация с использованием JWT токенов (access и refresh)
 
 ### Content Service
 

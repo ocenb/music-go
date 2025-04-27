@@ -1,0 +1,10 @@
+*
+
+!/cmd/
+!/internal/
+!/config/
+!go.mod
+!go.sum
+
+**/mocks/
+**/*_test.go

@@ -6,6 +6,9 @@ services:
       - .env
     ports:
       - "9089:9089"
+    volumes:
+      - ./.env:/app/.env
+      - ./config:/app/config
     depends_on:
       - kafka
     restart: always

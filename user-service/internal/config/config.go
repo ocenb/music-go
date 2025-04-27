@@ -42,7 +42,7 @@ type GRPCConfig struct {
 func MustLoad() *Config {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("Failed to load .env file: %v", err)
+		log.Printf("Warning: .env file not found: %v", err)
 	}
 
 	configPath := ""
