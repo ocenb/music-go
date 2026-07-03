@@ -17,8 +17,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
-	"github.com/ocenb/music-go/user-service/internal/handlers"
 	"github.com/ocenb/music-go/user-service/internal/errs"
+	"github.com/ocenb/music-go/user-service/internal/handlers"
 	"github.com/ocenb/music-go/user-service/internal/logger"
 	"github.com/ocenb/music-go/user-service/internal/middlewares"
 )

@@ -15,11 +15,11 @@ import (
 
 type AuthServiceSuite struct {
 	suite.Suite
-	mockUserService         *MockUserService
-	mockTokenService        *MockTokenService
-	mockNotificationClient  *MockNotificationClient
-	tm                      *transactor.Manager
-	service                 *Service
+	mockUserService        *MockUserService
+	mockTokenService       *MockTokenService
+	mockNotificationClient *MockNotificationClient
+	tm                     *transactor.Manager
+	service                *Service
 }
 
 func (s *AuthServiceSuite) SetupTest() {

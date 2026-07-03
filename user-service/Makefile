@@ -1,5 +1,4 @@
 .PHONY: build fix lint migrate gen-mocks test-unit tu test-functional tf \
-        create-test-users ctu delete-test-users dtu clear-db \
         run up up-dev up-build up-dev-build down prepare infra infra-dev logs test-cover
 
 ifneq (,$(wildcard .env))
@@ -31,17 +30,7 @@ test-cover:
 	go test -cover ./internal/...
 
 test-functional tf:
-	$(MAKE) ctu
-	go test ./tests; status=$$?; $(MAKE) dtu; exit $$status
-
-create-test-users ctu:
-	docker compose exec -T postgres psql -U postgres -d user-service-db < tests/suite/create_test_users.sql
-
-delete-test-users dtu:
-	docker compose exec -T postgres psql -U postgres -d user-service-db < tests/suite/delete_test_users.sql
-
-clear-db:
-	docker compose exec -T postgres psql -U postgres -d user-service-db < tests/suite/clear_db.sql
+	go test ./tests/... -count=1 -timeout 5m
 
 up:
 	docker compose -f docker-compose.yml up -d
