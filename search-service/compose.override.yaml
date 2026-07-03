@@ -1,0 +1,4 @@
+services:
+  elasticsearch:
+    ports:
+      - "${ELASTIC_PORT:-9200}:9200"

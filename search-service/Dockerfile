@@ -1,23 +1,15 @@
-FROM golang:1.24-alpine AS build
-
+FROM golang:1.26.1-alpine AS builder
 WORKDIR /app
-
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o main ./cmd/search-service
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s" -a -installsuffix cgo -o /app/search-service cmd/search-service/main.go
-
-FROM alpine:latest
-
+FROM alpine:3.23.2
+RUN adduser -D -H -h /app appuser
 WORKDIR /app
-
-RUN apk --no-cache upgrade
-
-COPY --from=build /app/search-service /app/search-service
-
+RUN chown appuser:appuser /app
+COPY --from=builder --chown=appuser:appuser /app/main .
+USER appuser
 EXPOSE 9091
-
-CMD ["/app/search-service"]
+CMD ["./main"]

@@ -1,0 +1,7 @@
+inpackage: true
+require-template-schema-exists: false
+template: testify
+packages:
+  github.com/ocenb/music-go/search-service/internal/services/search:
+    config:
+      all: true

@@ -1,66 +1,99 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/ocenb/music-go/search-service/internal/app"
-	"github.com/ocenb/music-go/search-service/internal/clients/elastic"
-	"github.com/ocenb/music-go/search-service/internal/clients/userservice"
+	"github.com/ocenb/music-go/search-service/internal/clients/user"
 	"github.com/ocenb/music-go/search-service/internal/config"
 	"github.com/ocenb/music-go/search-service/internal/logger"
-	"github.com/ocenb/music-go/search-service/internal/service"
-	"github.com/ocenb/music-go/search-service/internal/utils"
+	"github.com/ocenb/music-go/search-service/internal/logger/logattr"
+	searchrepo "github.com/ocenb/music-go/search-service/internal/repos/search"
+	"github.com/ocenb/music-go/search-service/internal/server"
+	searchservice "github.com/ocenb/music-go/search-service/internal/services/search"
+	"github.com/ocenb/music-go/search-service/internal/storage/elastic"
 )
 
 func main() {
-	startTime := time.Now()
-	cfg := config.MustLoad()
-	log := logger.Setup(cfg)
+	os.Exit(run())
+}
 
-	log.Info("Connecting to elasticsearch",
-		slog.String("host", cfg.ElasticHost),
-		slog.String("port", cfg.ElasticPort),
-	)
-	elasticClient, err := elastic.New(cfg, log)
+func run() int {
+	cfg, err := config.Load()
 	if err != nil {
-		log.Error("Failed to connect to elasticsearch", utils.ErrLog(err))
-		os.Exit(1)
+		//nolint:sloglint // default logger is used before initialization
+		slog.Error("cannot load config", logattr.Err(err))
+		return 1
 	}
-	userServiceClient, err := userservice.New(cfg)
+	log := logger.New(cfg.Log.Level, cfg.Log.Handler, cfg.Environment)
+	slog.SetDefault(log)
+
+	defer log.Info("app stopped")
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	connectCtx, connectCancel := context.WithTimeout(ctx, cfg.ElasticConnectTimeout)
+	defer connectCancel()
+
+	log.Info("connecting to elasticsearch",
+		slog.String("host", cfg.Elastic.Host),
+		slog.String("port", cfg.Elastic.Port),
+	)
+	elasticClient, err := elastic.New(connectCtx, cfg.Elastic, log)
 	if err != nil {
-		log.Error("Failed to connect to user service", utils.ErrLog(err))
-		os.Exit(1)
+		log.Error("initialization failed", logattr.Err(err))
+		return 1
+	}
+
+	userClient, err := user.New(cfg.UserServiceAddress, cfg.GRPC.Timeout, log)
+	if err != nil {
+		log.Error("failed to create user service client", logattr.Err(err))
+		return 1
 	}
 	defer func() {
-		log.Info("Closing user service connection")
-		err := userServiceClient.Conn.Close()
-		if err != nil {
-			log.Error("Failed to close user service connection", utils.ErrLog(err))
+		log.Info("closing user service connection")
+		if err := userClient.Close(); err != nil {
+			log.Error("failed to close user service connection", logattr.Err(err))
 		}
 	}()
 
-	searchService := service.NewSearchService(cfg, log, elasticClient)
+	repo := searchrepo.New(elasticClient)
+	svc := searchservice.New(repo)
 
-	log.Info("Initializing gRPC server", slog.Int("port", cfg.GRPC.Port))
-	grpcApp := app.New(searchService, userServiceClient, cfg, log)
+	log.Info("initializing gRPC server", slog.Int("port", cfg.GRPC.Port))
+	gRPCServer := server.New(svc, userClient, log, cfg.GRPC.Port)
 
+	serverErrors := make(chan error, 1)
 	go func() {
-		grpcApp.Run()
+		serverErrors <- gRPCServer.Start()
 	}()
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
-	<-stop
+	var serverErr error
+	select {
+	case serverErr = <-serverErrors:
+		if serverErr != nil {
+			log.Error("server crashed", logattr.Err(serverErr))
+		} else {
+			log.Error("server stopped unexpectedly")
+		}
+	case <-ctx.Done():
+		log.Info("received shutdown signal")
+	}
 
-	shutdownStart := time.Now()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+	defer shutdownCancel()
 
-	grpcApp.Stop()
+	shutdownErr := gRPCServer.Stop(shutdownCtx)
+	if shutdownErr != nil {
+		log.Error("gRPC server shutdown error", logattr.Err(shutdownErr))
+	}
 
-	log.Info("Service shutdown complete",
-		slog.Duration("shutdown_time", time.Since(shutdownStart)),
-		slog.Duration("uptime", time.Since(startTime)))
+	if shutdownErr != nil || serverErr != nil {
+		return 1
+	}
+	return 0
 }

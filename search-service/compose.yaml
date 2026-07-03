@@ -5,11 +5,21 @@ services:
       - "${PORT:-9091}:9091"
     env_file:
       - .env
+    environment:
+      ELASTIC_HOST: elasticsearch
+      ELASTIC_PORT: 9200
+      USER_SERVICE_ADDRESS: user-service-app:9090
     volumes:
       - ./config:/app/config
     depends_on:
       elasticsearch:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9091"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       music-go-network:
         aliases:
