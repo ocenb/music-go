@@ -23,7 +23,9 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - music-go-network
+      music-go-network:
+        aliases:
+          - user-service-app
 
   postgres:
     image: postgres:18.3-alpine3.23

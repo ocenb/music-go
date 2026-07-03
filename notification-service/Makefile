@@ -56,7 +56,7 @@ down:
 prepare:
 	$(MAKE) infra-dev
 	@echo "Waiting for kafka to be ready..."
-	@until docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1; do sleep 1; done
+	@until docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1; do sleep 1; done
 
 infra:
 	docker compose -f compose.yaml up -d kafka zookeeper
