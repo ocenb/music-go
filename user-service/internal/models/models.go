@@ -16,6 +16,6 @@ type TokenModel struct {
 	ID           string
 	CreatedAt    string
 	RefreshToken string
-	UserId       int64
+	UserID       int64
 	ExpiresAt    string
 }

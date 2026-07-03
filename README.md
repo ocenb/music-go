@@ -98,7 +98,7 @@ docker network create music-go-network
 ```bash
 cd user-service
 cp .env.example .env
-docker-compose up -d
+docker compose up -d
 ```
 
 2. Content Service:
@@ -106,7 +106,7 @@ docker-compose up -d
 ```bash
 cd content-service
 cp .env.example .env
-docker-compose up -d
+docker compose up -d
 ```
 
 3. Search Service:
@@ -114,7 +114,7 @@ docker-compose up -d
 ```bash
 cd search-service
 cp .env.example .env
-docker-compose up -d
+docker compose up -d
 ```
 
 4. Notification Service:
@@ -122,7 +122,7 @@ docker-compose up -d
 ```bash
 cd notification-service
 cp .env.example .env
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Структура кода
@@ -150,7 +150,7 @@ docker-compose up -d
 ├── tests/               # Функциональные тесты
 │   └── suite/           # Настройка тестового окружения
 ├── Dockerfile           # Сборка Docker образа
-├── docker-compose.yml   # Конфигурация Docker Compose
+├── compose.yaml           # Конфигурация Docker Compose
 ├── .env.example         # Пример переменных окружения
 └── Makefile             # Команды для сборки и запуска
 ```

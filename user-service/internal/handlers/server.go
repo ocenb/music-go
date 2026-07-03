@@ -18,7 +18,7 @@ import (
 type AuthService interface {
 	Register(ctx context.Context, username, email, password string) (*userservice.UserPrivateModel, error)
 	Login(ctx context.Context, email, password string) (*userservice.UserPrivateModel, string, string, error)
-	Logout(ctx context.Context, tokenId string) error
+	Logout(ctx context.Context, tokenID string) error
 	LogoutAll(ctx context.Context, userID int64) error
 	Refresh(ctx context.Context, oldRefreshToken string) (*userservice.UserPrivateModel, string, string, error)
 	Verify(ctx context.Context, verifyToken string) (*userservice.UserPrivateModel, string, string, error)

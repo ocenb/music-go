@@ -44,7 +44,7 @@ func (r *Repo) GetByUsername(ctx context.Context, username string) (*userservice
 	return &user, nil
 }
 
-func (r *Repo) GetById(ctx context.Context, id int64) (*models.UserFullModel, error) {
+func (r *Repo) GetByID(ctx context.Context, id int64) (*models.UserFullModel, error) {
 	q := r.tm.GetQueryEngine(ctx)
 
 	query := `

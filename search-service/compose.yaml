@@ -11,7 +11,9 @@ services:
       elasticsearch:
         condition: service_healthy
     networks:
-      - music-go-network
+      music-go-network:
+        aliases:
+          - search-service-app
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0

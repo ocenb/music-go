@@ -5,18 +5,28 @@ services:
       - "${PORT:-9090}:9090"
     env_file:
       - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      SEARCH_SERVICE_ADDRESS: search-service-app:9091
+      CONTENT_SERVICE_URL: http://content-service-app:3000
+      KAFKA_BROKERS: kafka:19092
     volumes:
       - ./config:/app/config
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 9090"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - music-go-network
 
   postgres:
     image: postgres:18.3-alpine3.23
-    env_file:
-      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -71,9 +72,16 @@ func Load() (*Config, error) {
 		env = "local"
 	}
 
-	configPath := fmt.Sprintf("config/%s.yaml", env)
+	switch env {
+	case "local", "dev", "test", "prod":
+	default:
+		env = "local"
+	}
+
+	configPath := filepath.Join("config", env+".yaml")
 	var cfg Config
 
+	//nolint:gosec // configPath is built from an allowlisted ENVIRONMENT value
 	if _, err := os.Stat(configPath); err == nil {
 		if err := loadAndValidate(configPath, &cfg); err != nil {
 			return nil, err

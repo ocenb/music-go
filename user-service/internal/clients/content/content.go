@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const internalSecretHeader = "X-Internal-Secret"
+const internalSecretHeader = "X-Internal-Secret" //nolint:gosec // HTTP header name, not a credential
 
 type Client struct {
 	baseURL        string

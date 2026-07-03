@@ -27,7 +27,7 @@ func (r *Repo) GetTokenByID(ctx context.Context, tokenID string) (*models.TokenM
 	query := `SELECT id, user_id, refresh_token, expires_at::text, created_at::text FROM tokens WHERE id = $1`
 
 	var token models.TokenModel
-	err := q.QueryRow(ctx, query, tokenID).Scan(&token.ID, &token.UserId, &token.RefreshToken, &token.ExpiresAt, &token.CreatedAt)
+	err := q.QueryRow(ctx, query, tokenID).Scan(&token.ID, &token.UserID, &token.RefreshToken, &token.ExpiresAt, &token.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errs.ErrTokenNotFound

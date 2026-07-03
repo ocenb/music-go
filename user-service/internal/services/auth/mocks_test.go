@@ -342,12 +342,12 @@ func (_c *MockUserService_GetByEmail_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
-// GetById provides a mock function for the type MockUserService
-func (_mock *MockUserService) GetById(ctx context.Context, id int64) (*models.UserFullModel, error) {
+// GetByID provides a mock function for the type MockUserService
+func (_mock *MockUserService) GetByID(ctx context.Context, id int64) (*models.UserFullModel, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetById")
+		panic("no return value specified for GetByID")
 	}
 
 	var r0 *models.UserFullModel
@@ -370,19 +370,19 @@ func (_mock *MockUserService) GetById(ctx context.Context, id int64) (*models.Us
 	return r0, r1
 }
 
-// MockUserService_GetById_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetById'
-type MockUserService_GetById_Call struct {
+// MockUserService_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
+type MockUserService_GetByID_Call struct {
 	*mock.Call
 }
 
-// GetById is a helper method to define mock.On call
+// GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id int64
-func (_e *MockUserService_Expecter) GetById(ctx interface{}, id interface{}) *MockUserService_GetById_Call {
-	return &MockUserService_GetById_Call{Call: _e.mock.On("GetById", ctx, id)}
+func (_e *MockUserService_Expecter) GetByID(ctx interface{}, id interface{}) *MockUserService_GetByID_Call {
+	return &MockUserService_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
-func (_c *MockUserService_GetById_Call) Run(run func(ctx context.Context, id int64)) *MockUserService_GetById_Call {
+func (_c *MockUserService_GetByID_Call) Run(run func(ctx context.Context, id int64)) *MockUserService_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -400,12 +400,12 @@ func (_c *MockUserService_GetById_Call) Run(run func(ctx context.Context, id int
 	return _c
 }
 
-func (_c *MockUserService_GetById_Call) Return(userFullModel *models.UserFullModel, err error) *MockUserService_GetById_Call {
+func (_c *MockUserService_GetByID_Call) Return(userFullModel *models.UserFullModel, err error) *MockUserService_GetByID_Call {
 	_c.Call.Return(userFullModel, err)
 	return _c
 }
 
-func (_c *MockUserService_GetById_Call) RunAndReturn(run func(ctx context.Context, id int64) (*models.UserFullModel, error)) *MockUserService_GetById_Call {
+func (_c *MockUserService_GetByID_Call) RunAndReturn(run func(ctx context.Context, id int64) (*models.UserFullModel, error)) *MockUserService_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }

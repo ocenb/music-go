@@ -113,7 +113,7 @@ func authFunc(authService handlers.AuthService) func(ctx context.Context) (conte
 			return nil, errs.ToGRPC(errs.Unauthenticated("invalid authorization header format"))
 		}
 
-		user, tokenId, err := authService.ValidateAccessToken(ctx, token)
+		user, tokenID, err := authService.ValidateAccessToken(ctx, token)
 		if err != nil {
 			if domainErr, ok := errs.As(err); ok && domainErr.Kind() == errs.KindUnauthenticated {
 				return nil, errs.ToGRPC(err)
@@ -121,7 +121,7 @@ func authFunc(authService handlers.AuthService) func(ctx context.Context) (conte
 			return nil, errs.ToGRPC(errs.Unauthenticated("unauthenticated"))
 		}
 
-		newCtx := middlewares.ContextWithAuth(ctx, user, tokenId)
+		newCtx := middlewares.ContextWithAuth(ctx, user, tokenID)
 
 		return newCtx, nil
 	}

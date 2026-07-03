@@ -53,7 +53,7 @@ func (s *AuthServiceSuite) TestValidateAccessToken_Valid() {
 		Email:      "test@example.com",
 		IsVerified: true,
 	}
-	s.mockUserService.On("GetById", ctx, userID).Return(expectedUser, nil)
+	s.mockUserService.On("GetByID", ctx, userID).Return(expectedUser, nil)
 
 	user, resultTokenID, err := s.service.ValidateAccessToken(ctx, "valid-token")
 	s.Require().NoError(err)
@@ -116,7 +116,7 @@ func (s *AuthServiceSuite) TestValidateAccessToken_UserNotFound() {
 
 	s.mockTokenService.On("ValidateToken", "valid-token-nonexistent-user").Return(claims, nil)
 	s.mockTokenService.On("GetTokenByID", ctx, tokenID).Return(&models.TokenModel{ID: tokenID}, nil)
-	s.mockUserService.On("GetById", ctx, userID).Return(nil, errs.ErrUserNotFound)
+	s.mockUserService.On("GetByID", ctx, userID).Return(nil, errs.ErrUserNotFound)
 
 	user, resultTokenID, err := s.service.ValidateAccessToken(ctx, "valid-token-nonexistent-user")
 	s.Require().Error(err)
@@ -140,7 +140,7 @@ func (s *AuthServiceSuite) TestValidateRefreshToken_Valid() {
 	s.mockTokenService.On("GetTokenByID", ctx, tokenID).Return(&models.TokenModel{
 		ID:           tokenID,
 		RefreshToken: refreshToken,
-		UserId:       userID,
+		UserID:       userID,
 	}, nil)
 
 	expectedUser := &models.UserFullModel{
@@ -149,7 +149,7 @@ func (s *AuthServiceSuite) TestValidateRefreshToken_Valid() {
 		Email:      "test@example.com",
 		IsVerified: true,
 	}
-	s.mockUserService.On("GetById", ctx, userID).Return(expectedUser, nil)
+	s.mockUserService.On("GetByID", ctx, userID).Return(expectedUser, nil)
 
 	user, resultTokenID, err := s.service.validateRefreshToken(ctx, refreshToken)
 	s.Require().NoError(err)
@@ -184,7 +184,7 @@ func (s *AuthServiceSuite) TestValidateRefreshToken_RefreshTokenMismatch() {
 	s.mockTokenService.On("GetTokenByID", ctx, tokenID).Return(&models.TokenModel{
 		ID:           tokenID,
 		RefreshToken: "different-refresh-token",
-		UserId:       userID,
+		UserID:       userID,
 	}, nil)
 
 	user, resultTokenID, err := s.service.validateRefreshToken(ctx, refreshToken)

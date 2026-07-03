@@ -15,7 +15,7 @@ import (
 
 type Repo interface {
 	GetByUsername(ctx context.Context, username string) (*userservice.UserPublicModel, error)
-	GetById(ctx context.Context, id int64) (*models.UserFullModel, error)
+	GetByID(ctx context.Context, id int64) (*models.UserFullModel, error)
 	GetByEmail(ctx context.Context, email string) (*models.UserFullModel, error)
 	GetByVerificationToken(ctx context.Context, verificationToken string) (*models.UserFullModel, error)
 	UpdateVerificationToken(ctx context.Context, userID int64, newVerificationToken string, expiresAt time.Time) (*userservice.UserPrivateModel, error)
@@ -69,10 +69,10 @@ func (s *Service) GetByUsername(ctx context.Context, username string) (*userserv
 	return user, nil
 }
 
-func (s *Service) GetById(ctx context.Context, id int64) (*models.UserFullModel, error) {
-	user, err := s.repo.GetById(ctx, id)
+func (s *Service) GetByID(ctx context.Context, id int64) (*models.UserFullModel, error) {
+	user, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("UserService.GetById: %w", err)
+		return nil, fmt.Errorf("UserService.GetByID: %w", err)
 	}
 	return user, nil
 }
@@ -184,7 +184,7 @@ func (s *Service) ChangePassword(ctx context.Context, userID int64, password str
 }
 
 func (s *Service) Delete(ctx context.Context, userID int64) error {
-	if _, err := s.GetById(ctx, userID); err != nil {
+	if _, err := s.GetByID(ctx, userID); err != nil {
 		return err
 	}
 

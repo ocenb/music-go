@@ -11,7 +11,9 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - music-go-network
+      music-go-network:
+        aliases:
+          - content-service-app
     dns:
       - 8.8.8.8
       - 8.8.4.4

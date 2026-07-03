@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // register pgx driver for goose migrations
 	"github.com/pressly/goose/v3"
 )
 

@@ -1,12 +1,26 @@
-.PHONY: build fix lint migrate gen-mocks test-unit tu test-functional tf \
-        run up up-dev up-build up-dev-build down prepare infra infra-dev logs test-cover
+ENV_TARGETS := run migrate prepare
+ENV_TEST_TARGETS := tf test-functional
 
-ifneq (,$(wildcard .env))
-    include .env
-    export
+ifneq ($(filter $(MAKECMDGOALS),$(ENV_TARGETS)),)
+ifeq ($(wildcard .env),)
+$(shell echo ".env not found. Copying from .env.example..." && cp .env.example .env)
+endif
+include .env
+export
+endif
+
+ifneq ($(filter $(MAKECMDGOALS),$(ENV_TEST_TARGETS)),)
+ifeq ($(wildcard tests/.env.test),)
+$(shell echo "tests/.env.test not found. Copying from tests/.env.test.example..." && cp tests/.env.test.example tests/.env.test)
+endif
+include tests/.env.test
+export
 endif
 
 DB_URL := postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(POSTGRES_PORT)/$(POSTGRES_DB)?sslmode=disable
+
+.PHONY: build fix lint migrate gen-mocks test-unit tu test-functional tf \
+        run up up-dev up-build up-dev-build down prepare infra infra-dev logs test-cover
 
 build:
 	go build -o .build/user-service ./cmd/user-service/main.go
@@ -33,13 +47,13 @@ test-functional tf:
 	go test ./tests/... -count=1 -timeout 5m
 
 up:
-	docker compose -f docker-compose.yml up -d
+	docker compose -f compose.yaml up -d
 
 up-dev:
 	docker compose up -d
 
 up-build:
-	docker compose -f docker-compose.yml up -d --build
+	docker compose -f compose.yaml up -d --build
 
 up-dev-build:
 	docker compose up -d --build
@@ -54,7 +68,7 @@ prepare:
 	$(MAKE) migrate
 
 infra:
-	docker compose -f docker-compose.yml up -d postgres
+	docker compose -f compose.yaml up -d postgres
 
 infra-dev:
 	docker compose up -d postgres

@@ -17,7 +17,7 @@ import (
 
 type UserService interface {
 	GetByUsername(ctx context.Context, username string) (*userservice.UserPublicModel, error)
-	GetById(ctx context.Context, id int64) (*models.UserFullModel, error)
+	GetByID(ctx context.Context, id int64) (*models.UserFullModel, error)
 	GetByEmail(ctx context.Context, email string) (*models.UserFullModel, error)
 	GetByVerificationToken(ctx context.Context, verificationToken string) (*models.UserFullModel, error)
 	UpdateVerificationToken(ctx context.Context, userID int64, newVerificationToken string) (*userservice.UserPrivateModel, error)
@@ -329,7 +329,7 @@ func (s *Service) ValidateAccessToken(ctx context.Context, accessToken string) (
 		return nil, "", err
 	}
 
-	user, err := s.userService.GetById(ctx, int64(userID))
+	user, err := s.userService.GetByID(ctx, int64(userID))
 	if err != nil {
 		return nil, "", err
 	}
@@ -362,7 +362,7 @@ func (s *Service) validateRefreshToken(ctx context.Context, refreshToken string)
 		return nil, "", errs.ErrInvalidRefreshToken
 	}
 
-	user, err := s.userService.GetById(ctx, int64(userID))
+	user, err := s.userService.GetByID(ctx, int64(userID))
 	if err != nil {
 		return nil, "", errs.ErrUserNotFound
 	}
