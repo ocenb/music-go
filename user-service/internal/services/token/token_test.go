@@ -1,31 +1,33 @@
 package token
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/ocenb/music-go/user-service/internal/config"
-	"github.com/ocenb/music-go/user-service/internal/logger"
-	"github.com/ocenb/music-go/user-service/internal/mocks/tokenmocks"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/ocenb/music-go/user-service/internal/errs"
+	"github.com/ocenb/music-go/user-service/internal/models"
 )
 
-func suite() (TokenServiceInterface, *config.Config) {
-	cfg := &config.Config{
-		JWTSecret:            "test-secret",
-		RefreshTokenLiveTime: time.Hour * 24 * 30,
-	}
-	log := logger.NewForTest()
-	mockRepo := new(tokenmocks.MockTokenRepo)
-	service := NewTokenService(cfg, log, mockRepo)
-
-	return service, cfg
+type TokenServiceSuite struct {
+	suite.Suite
+	service   *Service
+	jwtSecret string
 }
 
-func TestValidateToken_Valid(t *testing.T) {
-	service, cfg := suite()
+func (s *TokenServiceSuite) SetupTest() {
+	s.jwtSecret = "test-secret"
+	s.service = New(mockTokenRepo{}, s.jwtSecret, time.Hour, time.Hour*24*30)
+}
 
+func TestTokenServiceSuite(t *testing.T) {
+	suite.Run(t, new(TokenServiceSuite))
+}
+
+func (s *TokenServiceSuite) TestValidateToken_Valid() {
 	claims := jwt.MapClaims{
 		"userId":  int64(123),
 		"tokenId": "test-token-id",
@@ -33,19 +35,17 @@ func TestValidateToken_Valid(t *testing.T) {
 		"iat":     time.Now().Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
-	assert.NoError(t, err)
+	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	s.Require().NoError(err)
 
-	resultClaims, err := service.ValidateToken(tokenString)
-	assert.NoError(t, err)
-	assert.NotNil(t, resultClaims)
-	assert.Equal(t, float64(123), resultClaims["userId"])
-	assert.Equal(t, "test-token-id", resultClaims["tokenId"])
+	resultClaims, err := s.service.ValidateToken(tokenString)
+	s.Require().NoError(err)
+	s.NotNil(resultClaims)
+	s.Equal(float64(123), resultClaims["userId"])
+	s.Equal("test-token-id", resultClaims["tokenId"])
 }
 
-func TestValidateToken_InvalidSignature(t *testing.T) {
-	service, _ := suite()
-
+func (s *TokenServiceSuite) TestValidateToken_InvalidSignature() {
 	claims := jwt.MapClaims{
 		"userId":  int64(123),
 		"tokenId": "test-token-id",
@@ -54,17 +54,15 @@ func TestValidateToken_InvalidSignature(t *testing.T) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte("wrong-secret"))
-	assert.NoError(t, err)
+	s.Require().NoError(err)
 
-	resultClaims, err := service.ValidateToken(tokenString)
-	assert.Error(t, err)
-	assert.Nil(t, resultClaims)
-	assert.Equal(t, ErrInvalidToken, err)
+	resultClaims, err := s.service.ValidateToken(tokenString)
+	s.Require().Error(err)
+	s.Nil(resultClaims)
+	s.ErrorIs(err, errs.ErrInvalidToken)
 }
 
-func TestValidateToken_ExpiredToken(t *testing.T) {
-	service, cfg := suite()
-
+func (s *TokenServiceSuite) TestValidateToken_ExpiredToken() {
 	claims := jwt.MapClaims{
 		"userId":  int64(123),
 		"tokenId": "test-token-id",
@@ -72,18 +70,16 @@ func TestValidateToken_ExpiredToken(t *testing.T) {
 		"iat":     time.Now().Add(-time.Hour * 2).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
-	assert.NoError(t, err)
+	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	s.Require().NoError(err)
 
-	resultClaims, err := service.ValidateToken(tokenString)
-	assert.Error(t, err)
-	assert.Nil(t, resultClaims)
-	assert.Equal(t, ErrInvalidToken, err)
+	resultClaims, err := s.service.ValidateToken(tokenString)
+	s.Require().Error(err)
+	s.Nil(resultClaims)
+	s.ErrorIs(err, errs.ErrInvalidToken)
 }
 
-func TestValidateToken_InvalidMethod(t *testing.T) {
-	service, _ := suite()
-
+func (s *TokenServiceSuite) TestValidateToken_InvalidMethod() {
 	claims := jwt.MapClaims{
 		"userId":  int64(123),
 		"tokenId": "test-token-id",
@@ -92,44 +88,53 @@ func TestValidateToken_InvalidMethod(t *testing.T) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodNone, claims)
 	tokenString, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
-	assert.NoError(t, err)
+	s.Require().NoError(err)
 
-	resultClaims, err := service.ValidateToken(tokenString)
-	assert.Error(t, err)
-	assert.Nil(t, resultClaims)
-	assert.Equal(t, ErrInvalidToken, err)
+	resultClaims, err := s.service.ValidateToken(tokenString)
+	s.Require().Error(err)
+	s.Nil(resultClaims)
+	s.ErrorIs(err, errs.ErrInvalidToken)
 }
 
-func TestGenerateTokens(t *testing.T) {
-	cfg := &config.Config{
-		JWTSecret:            "test-secret",
-		RefreshTokenLiveTime: time.Hour * 24 * 30,
-		AccessTokenLiveTime:  time.Hour * 24 * 30,
-	}
-	log := logger.NewForTest()
-	mockRepo := new(tokenmocks.MockTokenRepo)
-	service := &TokenService{
-		tokenRepo: mockRepo,
-		cfg:       cfg,
-		log:       log,
-	}
-
+func (s *TokenServiceSuite) TestGenerateTokens() {
 	userID := int64(123)
 
-	accessToken, refreshToken, tokenID, expiresAt, err := service.generateTokens(userID)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, accessToken)
-	assert.NotEmpty(t, refreshToken)
-	assert.NotEmpty(t, tokenID)
-	assert.True(t, expiresAt.After(time.Now().Add(time.Hour*24*29)))
+	accessToken, refreshToken, tokenID, expiresAt, err := s.service.generateTokens(userID)
+	s.Require().NoError(err)
+	s.NotEmpty(accessToken)
+	s.NotEmpty(refreshToken)
+	s.NotEmpty(tokenID)
+	s.True(expiresAt.After(time.Now().Add(time.Hour * 24 * 29)))
 
-	accessClaims, err := service.ValidateToken(accessToken)
-	assert.NoError(t, err)
-	assert.Equal(t, float64(userID), accessClaims["userId"])
-	assert.Equal(t, tokenID, accessClaims["tokenId"])
+	accessClaims, err := s.service.ValidateToken(accessToken)
+	s.Require().NoError(err)
+	s.Equal(float64(userID), accessClaims["userId"])
+	s.Equal(tokenID, accessClaims["tokenId"])
 
-	refreshClaims, err := service.ValidateToken(refreshToken)
-	assert.NoError(t, err)
-	assert.Equal(t, float64(userID), refreshClaims["userId"])
-	assert.Equal(t, tokenID, refreshClaims["tokenId"])
+	refreshClaims, err := s.service.ValidateToken(refreshToken)
+	s.Require().NoError(err)
+	s.Equal(float64(userID), refreshClaims["userId"])
+	s.Equal(tokenID, refreshClaims["tokenId"])
+}
+
+type mockTokenRepo struct{}
+
+func (mockTokenRepo) GetTokenByID(context.Context, string) (*models.TokenModel, error) {
+	return nil, nil
+}
+
+func (mockTokenRepo) CreateToken(context.Context, string, int64, string, time.Time) error {
+	return nil
+}
+
+func (mockTokenRepo) DeleteTokenByID(context.Context, string) error {
+	return nil
+}
+
+func (mockTokenRepo) DeleteAllUserTokens(context.Context, int64) error {
+	return nil
+}
+
+func (mockTokenRepo) DeleteExpiredTokens(context.Context) error {
+	return nil
 }

@@ -2,284 +2,317 @@ package user
 
 import (
 	"context"
-	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
-	"github.com/ocenb/music-go/user-service/internal/models"
-	"github.com/ocenb/music-go/user-service/internal/utils"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/ocenb/music-protos/gen/userservice"
 
-	_ "github.com/lib/pq"
+	"github.com/ocenb/music-go/user-service/internal/errs"
+	"github.com/ocenb/music-go/user-service/internal/models"
+	"github.com/ocenb/music-go/user-service/internal/storage/transactor"
 )
 
-type UserRepoInterface interface {
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-	GetByUsername(ctx context.Context, username string) (*userservice.UserPublicModel, error)
-	GetById(ctx context.Context, id int64) (*models.UserFullModel, error)
-	GetByEmail(ctx context.Context, email string) (*models.UserFullModel, error)
-	GetByVerificationToken(ctx context.Context, verificationToken string) (*models.UserFullModel, error)
-	UpdateVerificationToken(ctx context.Context, userID int64, newVerificationToken string, expiresAt time.Time) (*userservice.UserPrivateModel, error)
-	SetVerified(ctx context.Context, userID int64) (*userservice.UserPrivateModel, error)
-	Create(ctx context.Context, username, email, password, verificationToken string, verificationTokenExpiresAt time.Time) (*userservice.UserPrivateModel, error)
-	ChangeUsername(ctx context.Context, userID int64, username string) (*userservice.UserPublicModel, error)
-	ChangeEmail(ctx context.Context, userID int64, email string) (*userservice.UserPrivateModel, error)
-	ChangePassword(ctx context.Context, userID int64, password string) (*userservice.UserPrivateModel, error)
-	Delete(ctx context.Context, userID int64) error
-	CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error)
-	Follow(ctx context.Context, userID int64, targetUserID int64) error
-	Unfollow(ctx context.Context, userID int64, targetUserID int64) error
+type Repo struct {
+	tm *transactor.Manager
 }
 
-type UserRepo struct {
-	postgres *sql.DB
+func New(tm *transactor.Manager) *Repo {
+	return &Repo{tm: tm}
 }
 
-func NewUserRepo(postgres *sql.DB) UserRepoInterface {
-	return &UserRepo{postgres: postgres}
-}
+func (r *Repo) GetByUsername(ctx context.Context, username string) (*userservice.UserPublicModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
 
-func (r *UserRepo) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
-	return r.postgres.BeginTx(ctx, opts)
-}
-
-func (r *UserRepo) GetByUsername(ctx context.Context, username string) (*userservice.UserPublicModel, error) {
 	query := `
 		SELECT u.id, u.username, u.followers_count
 		FROM users u
 		WHERE u.username = $1 AND u.is_verified = TRUE
 	`
-	row := r.postgres.QueryRowContext(ctx, query, username)
 
 	var user userservice.UserPublicModel
-	err := row.Scan(&user.Id, &user.Username, &user.FollowersCount)
+	err := q.QueryRow(ctx, query, username).Scan(&user.Id, &user.Username, &user.FollowersCount)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("failed to get user by username: %w", err)
 	}
 
 	return &user, nil
 }
 
-func (r *UserRepo) GetById(ctx context.Context, id int64) (*models.UserFullModel, error) {
-	query := `SELECT * FROM users WHERE id = $1`
-	row := r.postgres.QueryRowContext(ctx, query, id)
+func (r *Repo) GetById(ctx context.Context, id int64) (*models.UserFullModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
 
-	var user models.UserFullModel
-	err := row.Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.IsVerified, &user.VerificationToken, &user.VerificationTokenExpiresAt, &user.CreatedAt, &user.FollowersCount)
-	if err != nil {
-		return nil, err
-	}
+	query := `
+		SELECT id, username, email, password, is_verified, verification_token,
+		       verification_token_expires_at::text, created_at::text, followers_count
+		FROM users
+		WHERE id = $1
+	`
 
-	return &user, nil
+	return scanUserFullModel(q.QueryRow(ctx, query, id))
 }
 
-func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*models.UserFullModel, error) {
-	query := `SELECT * FROM users WHERE email = $1`
-	row := r.postgres.QueryRowContext(ctx, query, email)
+func (r *Repo) GetByEmail(ctx context.Context, email string) (*models.UserFullModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
 
-	var user models.UserFullModel
-	err := row.Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.IsVerified, &user.VerificationToken, &user.VerificationTokenExpiresAt, &user.CreatedAt, &user.FollowersCount)
-	if err != nil {
-		return nil, err
-	}
+	query := `
+		SELECT id, username, email, password, is_verified, verification_token,
+		       verification_token_expires_at::text, created_at::text, followers_count
+		FROM users
+		WHERE email = $1
+	`
 
-	return &user, nil
+	return scanUserFullModel(q.QueryRow(ctx, query, email))
 }
 
-func (r *UserRepo) GetByVerificationToken(ctx context.Context, verificationToken string) (*models.UserFullModel, error) {
-	query := `SELECT * FROM users WHERE verification_token = $1`
-	row := r.postgres.QueryRowContext(ctx, query, verificationToken)
+func (r *Repo) GetByVerificationToken(ctx context.Context, verificationToken string) (*models.UserFullModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
 
-	var user models.UserFullModel
-	err := row.Scan(&user.ID, &user.Username, &user.Email, &user.Password, &user.IsVerified, &user.VerificationToken, &user.VerificationTokenExpiresAt, &user.CreatedAt, &user.FollowersCount)
-	if err != nil {
-		return nil, err
-	}
+	query := `
+		SELECT id, username, email, password, is_verified, verification_token,
+		       verification_token_expires_at::text, created_at::text, followers_count
+		FROM users
+		WHERE verification_token = $1
+	`
 
-	return &user, nil
+	return scanUserFullModel(q.QueryRow(ctx, query, verificationToken))
 }
 
-func (r *UserRepo) UpdateVerificationToken(ctx context.Context, userID int64, newVerificationToken string, expiresAt time.Time) (*userservice.UserPrivateModel, error) {
+func (r *Repo) UpdateVerificationToken(
+	ctx context.Context,
+	userID int64,
+	newVerificationToken string,
+	expiresAt time.Time,
+) (*userservice.UserPrivateModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `
 		UPDATE users
 		SET verification_token = $2, verification_token_expires_at = $3
 		WHERE id = $1
-		RETURNING id, username, email, created_at
+		RETURNING id, username, email, created_at::text
 	`
-	var user userservice.UserPrivateModel
 
-	tx, hasTx := utils.GetTxFromContext(ctx)
-	if hasTx {
-		_, err := tx.ExecContext(ctx, query, userID, newVerificationToken, expiresAt)
-		if err != nil {
-			return nil, err
+	var user userservice.UserPrivateModel
+	err := q.QueryRow(ctx, query, userID, newVerificationToken, expiresAt).Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.ErrUserNotFound
 		}
-	} else {
-		err := r.postgres.QueryRowContext(ctx, query, userID, newVerificationToken, expiresAt).Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("failed to update verification token: %w", err)
 	}
 
 	return &user, nil
 }
 
-func (r *UserRepo) SetVerified(ctx context.Context, userID int64) (*userservice.UserPrivateModel, error) {
+func (r *Repo) SetVerified(ctx context.Context, userID int64) (*userservice.UserPrivateModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `
 		UPDATE users
 		SET is_verified = TRUE, verification_token = NULL, verification_token_expires_at = NULL
 		WHERE id = $1
-		RETURNING id, username, email, created_at
+		RETURNING id, username, email, created_at::text
 	`
-	var user userservice.UserPrivateModel
 
-	tx, hasTx := utils.GetTxFromContext(ctx)
-	if hasTx {
-		_, err := tx.ExecContext(ctx, query, userID)
-		if err != nil {
-			return nil, err
+	var user userservice.UserPrivateModel
+	err := q.QueryRow(ctx, query, userID).Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.ErrUserNotFound
 		}
-	} else {
-		err := r.postgres.QueryRowContext(ctx, query, userID).Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
-		if err != nil {
-			return nil, err
-		}
+		return nil, fmt.Errorf("failed to set user as verified: %w", err)
 	}
 
 	return &user, nil
 }
 
-func (r *UserRepo) Create(ctx context.Context, username, email, password, verificationToken string, verificationTokenExpiresAt time.Time) (*userservice.UserPrivateModel, error) {
+func (r *Repo) Create(
+	ctx context.Context,
+	username, email, password, verificationToken string,
+	verificationTokenExpiresAt time.Time,
+) (*userservice.UserPrivateModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `
 		INSERT INTO users (username, email, password, verification_token, verification_token_expires_at)
 		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, username, email, created_at
+		RETURNING id, username, email, created_at::text
 	`
-	tx, hasTx := utils.GetTxFromContext(ctx)
-
-	var row *sql.Row
-	if hasTx {
-		row = tx.QueryRowContext(ctx, query, username, email, password, verificationToken, verificationTokenExpiresAt)
-	} else {
-		row = r.postgres.QueryRowContext(ctx, query, username, email, password, verificationToken, verificationTokenExpiresAt)
-	}
 
 	var user userservice.UserPrivateModel
-	err := row.Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
+	err := q.QueryRow(ctx, query, username, email, password, verificationToken, verificationTokenExpiresAt).
+		Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
 	if err != nil {
-		return nil, err
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
+			switch pgErr.ConstraintName {
+			case "users_username_key":
+				return nil, errs.ErrUserUsernameExists
+			case "users_email_key":
+				return nil, errs.ErrUserEmailExists
+			case "users_verification_token_key":
+				return nil, fmt.Errorf("failed to create user: %w", err)
+			}
+		}
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	return &user, nil
 }
 
-func (r *UserRepo) ChangeUsername(ctx context.Context, userID int64, username string) (*userservice.UserPublicModel, error) {
+func (r *Repo) ChangeUsername(ctx context.Context, userID int64, username string) (*userservice.UserPublicModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `
 		UPDATE users
 		SET username = $2
 		WHERE id = $1
 		RETURNING id, username, followers_count
 	`
-	tx, hasTx := utils.GetTxFromContext(ctx)
-
-	var row *sql.Row
-	if hasTx {
-		row = tx.QueryRowContext(ctx, query, userID, username)
-	} else {
-		row = r.postgres.QueryRowContext(ctx, query, userID, username)
-	}
 
 	var user userservice.UserPublicModel
-	err := row.Scan(&user.Id, &user.Username, &user.FollowersCount)
+	err := q.QueryRow(ctx, query, userID, username).Scan(&user.Id, &user.Username, &user.FollowersCount)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.ErrUserNotFound
+		}
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
+			return nil, errs.ErrUserUsernameExists
+		}
+		return nil, fmt.Errorf("failed to change username: %w", err)
 	}
 
 	return &user, nil
 }
 
-func (r *UserRepo) ChangeEmail(ctx context.Context, userID int64, email string) (*userservice.UserPrivateModel, error) {
+func (r *Repo) ChangeEmail(ctx context.Context, userID int64, email string) (*userservice.UserPrivateModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `
 		UPDATE users
 		SET email = $2
 		WHERE id = $1
-		RETURNING id, username, email, created_at
+		RETURNING id, username, email, created_at::text
 	`
-	tx, hasTx := utils.GetTxFromContext(ctx)
-
-	var row *sql.Row
-	if hasTx {
-		row = tx.QueryRowContext(ctx, query, userID, email)
-	} else {
-		row = r.postgres.QueryRowContext(ctx, query, userID, email)
-	}
 
 	var user userservice.UserPrivateModel
-	err := row.Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
+	err := q.QueryRow(ctx, query, userID, email).Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.ErrUserNotFound
+		}
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
+			return nil, errs.ErrUserEmailExists
+		}
+		return nil, fmt.Errorf("failed to change email: %w", err)
 	}
 
 	return &user, nil
 }
 
-func (r *UserRepo) ChangePassword(ctx context.Context, userID int64, password string) (*userservice.UserPrivateModel, error) {
+func (r *Repo) ChangePassword(ctx context.Context, userID int64, password string) (*userservice.UserPrivateModel, error) {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `
 		UPDATE users
 		SET password = $2
 		WHERE id = $1
-		RETURNING id, username, email, created_at
+		RETURNING id, username, email, created_at::text
 	`
-	tx, hasTx := utils.GetTxFromContext(ctx)
-
-	var row *sql.Row
-	if hasTx {
-		row = tx.QueryRowContext(ctx, query, userID, password)
-	} else {
-		row = r.postgres.QueryRowContext(ctx, query, userID, password)
-	}
 
 	var user userservice.UserPrivateModel
-	err := row.Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
+	err := q.QueryRow(ctx, query, userID, password).Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("failed to change password: %w", err)
 	}
 
 	return &user, nil
 }
 
-func (r *UserRepo) Delete(ctx context.Context, userID int64) error {
-	query := `DELETE FROM users WHERE id = $1`
+func (r *Repo) Delete(ctx context.Context, userID int64) error {
+	q := r.tm.GetQueryEngine(ctx)
 
-	tx, hasTx := utils.GetTxFromContext(ctx)
-	if hasTx {
-		_, err := tx.ExecContext(ctx, query, userID)
-		return err
+	query := `DELETE FROM users WHERE id = $1`
+	cmdTag, err := q.Exec(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
 	}
-	_, err := r.postgres.ExecContext(ctx, query, userID)
-	return err
+	if cmdTag.RowsAffected() == 0 {
+		return errs.ErrUserNotFound
+	}
+
+	return nil
 }
 
-func (r *UserRepo) CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error) {
+func (r *Repo) CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error) {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `SELECT EXISTS(SELECT 1 FROM user_followers WHERE user_id = $1 AND follower_id = $2)`
-	row := r.postgres.QueryRowContext(ctx, query, targetUserID, userID)
 
 	var exists bool
-	err := row.Scan(&exists)
-	if err != nil {
-		return false, err
+	if err := q.QueryRow(ctx, query, targetUserID, userID).Scan(&exists); err != nil {
+		return false, fmt.Errorf("failed to check follow: %w", err)
 	}
 
 	return exists, nil
 }
 
-func (r *UserRepo) Follow(ctx context.Context, userID int64, targetUserID int64) error {
+func (r *Repo) Follow(ctx context.Context, userID int64, targetUserID int64) error {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `INSERT INTO user_followers (user_id, follower_id) VALUES ($1, $2)`
-	_, err := r.postgres.ExecContext(ctx, query, targetUserID, userID)
-	return err
+	if _, err := q.Exec(ctx, query, targetUserID, userID); err != nil {
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
+			return errs.ErrUserAlreadyFollowed
+		}
+		return fmt.Errorf("failed to follow user: %w", err)
+	}
+
+	return nil
 }
 
-func (r *UserRepo) Unfollow(ctx context.Context, userID int64, targetUserID int64) error {
+func (r *Repo) Unfollow(ctx context.Context, userID int64, targetUserID int64) error {
+	q := r.tm.GetQueryEngine(ctx)
+
 	query := `DELETE FROM user_followers WHERE user_id = $1 AND follower_id = $2`
-	_, err := r.postgres.ExecContext(ctx, query, targetUserID, userID)
-	return err
+	cmdTag, err := q.Exec(ctx, query, targetUserID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to unfollow user: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return errs.ErrUserNotFollowed
+	}
+
+	return nil
+}
+
+func scanUserFullModel(row pgx.Row) (*models.UserFullModel, error) {
+	var user models.UserFullModel
+	err := row.Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Password,
+		&user.IsVerified,
+		&user.VerificationToken,
+		&user.VerificationTokenExpiresAt,
+		&user.CreatedAt,
+		&user.FollowersCount,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errs.ErrUserNotFound
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	return &user, nil
 }

@@ -1,0 +1,57 @@
+package notification
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+
+	"github.com/segmentio/kafka-go"
+)
+
+const (
+	notificationEmailTopic = "email-notifications"
+)
+
+type Client struct {
+	writer *kafka.Writer
+}
+
+type EmailNotification struct {
+	Email string `json:"email"`
+	Msg   string `json:"msg"`
+}
+
+func New(brokers []string) (*Client, error) {
+	if len(brokers) == 0 {
+		return nil, fmt.Errorf("kafka brokers list is empty")
+	}
+
+	writer := &kafka.Writer{
+		Addr:         kafka.TCP(brokers...),
+		Topic:        notificationEmailTopic,
+		RequiredAcks: kafka.RequireAll,
+		Async:        false,
+	}
+
+	return &Client{writer: writer}, nil
+}
+
+func (c *Client) SendEmailNotification(ctx context.Context, email, msg string) error {
+	payload, err := json.Marshal(EmailNotification{
+		Email: email,
+		Msg:   msg,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal email notification: %w", err)
+	}
+
+	if err := c.writer.WriteMessages(ctx, kafka.Message{Value: payload}); err != nil {
+		return fmt.Errorf("failed to send message: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) Close() error {
+	return c.writer.Close()
+}

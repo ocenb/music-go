@@ -66,15 +66,18 @@ func New(postgres *sql.DB, cfg *config.Config, log *slog.Logger, cloudinary clou
 	router.Use(loggerMiddleware(log))
 
 	api := router.Group("/api/content")
-	apiWithoutAuth := router.Group("/api/content")
 	api.Use(authMiddleware(userServiceClient))
 
 	trackHandler.RegisterHandlers(api)
 	playlistHandler.RegisterHandlers(api)
 	playlistTracksHandler.RegisterHandlers(api)
 	historyHandler.RegisterHandlers(api)
-	allHandler.RegisterHandlers(apiWithoutAuth)
+	allHandler.RegisterHandlers(api)
 	searchHandler.RegisterHandlers(api)
+
+	internalAPI := router.Group("/api/content/internal")
+	internalAPI.Use(internalAuthMiddleware(cfg.InternalServiceSecret))
+	allHandler.RegisterInternalHandlers(internalAPI)
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Port),
@@ -122,6 +125,16 @@ func loggerMiddleware(log *slog.Logger) gin.HandlerFunc {
 			"ip", clientIP,
 			"latency", latency,
 		)
+	}
+}
+
+func internalAuthMiddleware(secret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.GetHeader("X-Internal-Secret") != secret {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		c.Next()
 	}
 }
 

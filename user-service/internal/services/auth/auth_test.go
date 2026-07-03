@@ -6,217 +6,190 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/ocenb/music-go/user-service/internal/config"
-	"github.com/ocenb/music-go/user-service/internal/logger"
-	"github.com/ocenb/music-go/user-service/internal/mocks/authmocks"
-	"github.com/ocenb/music-go/user-service/internal/mocks/notificationmocks"
-	"github.com/ocenb/music-go/user-service/internal/mocks/tokenmocks"
-	"github.com/ocenb/music-go/user-service/internal/mocks/usermocks"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/ocenb/music-go/user-service/internal/errs"
 	"github.com/ocenb/music-go/user-service/internal/models"
-	"github.com/ocenb/music-go/user-service/internal/services/token"
-	"github.com/ocenb/music-go/user-service/internal/services/user"
-	"github.com/stretchr/testify/assert"
+	"github.com/ocenb/music-go/user-service/internal/storage/transactor"
 )
 
-func suite() (context.Context, *tokenmocks.MockTokenService, *usermocks.MockUserService, AuthServiceInterface) {
-	ctx := context.Background()
-	cfg := &config.Config{
-		JWTSecret: "test-secret",
-	}
-	log := logger.NewForTest()
-	mockTokenService := new(tokenmocks.MockTokenService)
-	mockUserService := new(usermocks.MockUserService)
-	mockAuthRepo := new(authmocks.MockAuthRepo)
-	mockNotificationClient := new(notificationmocks.MockNotificationClient)
-	authService := NewAuthService(cfg, log, mockUserService, mockTokenService, mockAuthRepo, mockNotificationClient)
-
-	return ctx, mockTokenService, mockUserService, authService
+type AuthServiceSuite struct {
+	suite.Suite
+	mockUserService         *MockUserService
+	mockTokenService        *MockTokenService
+	mockNotificationClient  *MockNotificationClient
+	tm                      *transactor.Manager
+	service                 *Service
 }
 
-func TestValidateAccessToken_Valid(t *testing.T) {
-	ctx, mockTokenService, mockUserService, authService := suite()
+func (s *AuthServiceSuite) SetupTest() {
+	s.mockUserService = NewMockUserService(s.T())
+	s.mockTokenService = NewMockTokenService(s.T())
+	s.mockNotificationClient = NewMockNotificationClient(s.T())
+	s.tm = transactor.NewMock()
+	s.service = New(s.mockUserService, s.mockTokenService, s.mockNotificationClient, s.tm, 12)
+}
 
-	tokenId := "test-token-id"
-	userId := int64(123)
+func TestAuthServiceSuite(t *testing.T) {
+	suite.Run(t, new(AuthServiceSuite))
+}
+
+func (s *AuthServiceSuite) TestValidateAccessToken_Valid() {
+	ctx := context.Background()
+	tokenID := "test-token-id"
+	userID := int64(123)
 	claims := jwt.MapClaims{
-		"userId":  float64(userId),
-		"tokenId": tokenId,
+		"userId":  float64(userID),
+		"tokenId": tokenID,
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	}
 
-	mockTokenService.On("ValidateToken", "valid-token").Return(claims, nil)
-	mockTokenService.On("GetTokenByID", ctx, tokenId).Return(&models.TokenModel{ID: tokenId}, nil)
+	s.mockTokenService.On("ValidateToken", "valid-token").Return(claims, nil)
+	s.mockTokenService.On("GetTokenByID", ctx, tokenID).Return(&models.TokenModel{ID: tokenID}, nil)
 
 	expectedUser := &models.UserFullModel{
-		ID:         userId,
+		ID:         userID,
 		Username:   "testuser",
 		Email:      "test@example.com",
 		IsVerified: true,
 	}
-	mockUserService.On("GetById", ctx, userId).Return(expectedUser, nil)
+	s.mockUserService.On("GetById", ctx, userID).Return(expectedUser, nil)
 
-	user, resultTokenId, err := authService.ValidateAccessToken(ctx, "valid-token")
-	assert.NoError(t, err)
-	assert.Equal(t, expectedUser, user)
-	assert.Equal(t, tokenId, resultTokenId)
-
-	mockTokenService.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
+	user, resultTokenID, err := s.service.ValidateAccessToken(ctx, "valid-token")
+	s.Require().NoError(err)
+	s.Equal(expectedUser, user)
+	s.Equal(tokenID, resultTokenID)
 }
 
-func TestValidateAccessToken_InvalidToken(t *testing.T) {
-	ctx, mockTokenService, _, authService := suite()
+func (s *AuthServiceSuite) TestValidateAccessToken_InvalidToken() {
+	ctx := context.Background()
 
-	mockTokenService.On("ValidateToken", "invalid-token").Return(nil, token.ErrInvalidToken)
+	s.mockTokenService.On("ValidateToken", "invalid-token").Return(nil, errs.ErrInvalidToken)
 
-	user, tokenId, err := authService.ValidateAccessToken(ctx, "invalid-token")
-	assert.Error(t, err)
-	assert.Nil(t, user)
-	assert.Empty(t, tokenId)
-
-	mockTokenService.AssertExpectations(t)
+	user, tokenID, err := s.service.ValidateAccessToken(ctx, "invalid-token")
+	s.Require().Error(err)
+	s.Nil(user)
+	s.Empty(tokenID)
 }
 
-func TestValidateAccessToken_InvalidUserID(t *testing.T) {
-	ctx, mockTokenService, _, authService := suite()
-
+func (s *AuthServiceSuite) TestValidateAccessToken_InvalidUserID() {
+	ctx := context.Background()
 	claims := jwt.MapClaims{
 		"tokenId": "test-token-id",
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	}
 
-	mockTokenService.On("ValidateToken", "token-without-userid").Return(claims, nil)
+	s.mockTokenService.On("ValidateToken", "token-without-userid").Return(claims, nil)
 
-	user, tokenId, err := authService.ValidateAccessToken(ctx, "token-without-userid")
-	assert.Error(t, err)
-	assert.Equal(t, ErrInvalidToken, err)
-	assert.Nil(t, user)
-	assert.Empty(t, tokenId)
-
-	mockTokenService.AssertExpectations(t)
+	user, tokenID, err := s.service.ValidateAccessToken(ctx, "token-without-userid")
+	s.Require().Error(err)
+	s.ErrorIs(err, errs.ErrInvalidToken)
+	s.Nil(user)
+	s.Empty(tokenID)
 }
 
-func TestValidateAccessToken_InvalidTokenID(t *testing.T) {
-	ctx, mockTokenService, _, authService := suite()
-
+func (s *AuthServiceSuite) TestValidateAccessToken_InvalidTokenID() {
+	ctx := context.Background()
 	claims := jwt.MapClaims{
 		"userId": float64(123),
 		"exp":    time.Now().Add(time.Hour).Unix(),
 	}
 
-	mockTokenService.On("ValidateToken", "token-without-tokenid").Return(claims, nil)
+	s.mockTokenService.On("ValidateToken", "token-without-tokenid").Return(claims, nil)
 
-	user, tokenId, err := authService.ValidateAccessToken(ctx, "token-without-tokenid")
-	assert.Error(t, err)
-	assert.Equal(t, ErrInvalidToken, err)
-	assert.Nil(t, user)
-	assert.Empty(t, tokenId)
-
-	mockTokenService.AssertExpectations(t)
+	user, tokenID, err := s.service.ValidateAccessToken(ctx, "token-without-tokenid")
+	s.Require().Error(err)
+	s.ErrorIs(err, errs.ErrInvalidToken)
+	s.Nil(user)
+	s.Empty(tokenID)
 }
 
-func TestValidateAccessToken_UserNotFound(t *testing.T) {
-	ctx, mockTokenService, mockUserService, authService := suite()
-
-	tokenId := "test-token-id"
-	userId := int64(123)
+func (s *AuthServiceSuite) TestValidateAccessToken_UserNotFound() {
+	ctx := context.Background()
+	tokenID := "test-token-id"
+	userID := int64(123)
 	claims := jwt.MapClaims{
-		"userId":  float64(userId),
-		"tokenId": tokenId,
+		"userId":  float64(userID),
+		"tokenId": tokenID,
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	}
 
-	mockTokenService.On("ValidateToken", "valid-token-nonexistent-user").Return(claims, nil)
-	mockTokenService.On("GetTokenByID", ctx, tokenId).Return(&models.TokenModel{ID: tokenId}, nil)
-	mockUserService.On("GetById", ctx, userId).Return(nil, user.ErrUserNotFound)
+	s.mockTokenService.On("ValidateToken", "valid-token-nonexistent-user").Return(claims, nil)
+	s.mockTokenService.On("GetTokenByID", ctx, tokenID).Return(&models.TokenModel{ID: tokenID}, nil)
+	s.mockUserService.On("GetById", ctx, userID).Return(nil, errs.ErrUserNotFound)
 
-	user, resultTokenId, err := authService.ValidateAccessToken(ctx, "valid-token-nonexistent-user")
-	assert.Error(t, err)
-	assert.Equal(t, ErrUserNotFound, err)
-	assert.Nil(t, user)
-	assert.Empty(t, resultTokenId)
-
-	mockTokenService.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
+	user, resultTokenID, err := s.service.ValidateAccessToken(ctx, "valid-token-nonexistent-user")
+	s.Require().Error(err)
+	s.ErrorIs(err, errs.ErrUserNotFound)
+	s.Nil(user)
+	s.Empty(resultTokenID)
 }
 
-func TestValidateRefreshToken_Valid(t *testing.T) {
-	ctx, mockTokenService, mockUserService, authService := suite()
-
-	tokenId := "test-token-id"
-	userId := int64(123)
+func (s *AuthServiceSuite) TestValidateRefreshToken_Valid() {
+	ctx := context.Background()
+	tokenID := "test-token-id"
+	userID := int64(123)
 	refreshToken := "valid-refresh-token"
-
 	claims := jwt.MapClaims{
-		"userId":  float64(userId),
-		"tokenId": tokenId,
+		"userId":  float64(userID),
+		"tokenId": tokenID,
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	}
 
-	mockTokenService.On("ValidateToken", refreshToken).Return(claims, nil)
-
-	mockTokenService.On("GetTokenByID", ctx, tokenId).Return(&models.TokenModel{
-		ID:           tokenId,
+	s.mockTokenService.On("ValidateToken", refreshToken).Return(claims, nil)
+	s.mockTokenService.On("GetTokenByID", ctx, tokenID).Return(&models.TokenModel{
+		ID:           tokenID,
 		RefreshToken: refreshToken,
-		UserId:       userId,
+		UserId:       userID,
 	}, nil)
 
 	expectedUser := &models.UserFullModel{
-		ID:         userId,
+		ID:         userID,
 		Username:   "testuser",
 		Email:      "test@example.com",
 		IsVerified: true,
 	}
-	mockUserService.On("GetById", ctx, userId).Return(expectedUser, nil)
+	s.mockUserService.On("GetById", ctx, userID).Return(expectedUser, nil)
 
-	user, resultTokenId, err := authService.validateRefreshToken(ctx, refreshToken)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedUser, user)
-	assert.Equal(t, tokenId, resultTokenId)
-
-	mockTokenService.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
+	user, resultTokenID, err := s.service.validateRefreshToken(ctx, refreshToken)
+	s.Require().NoError(err)
+	s.Equal(expectedUser, user)
+	s.Equal(tokenID, resultTokenID)
 }
 
-func TestValidateRefreshToken_InvalidToken(t *testing.T) {
-	ctx, mockTokenService, _, authService := suite()
+func (s *AuthServiceSuite) TestValidateRefreshToken_InvalidToken() {
+	ctx := context.Background()
 
-	mockTokenService.On("ValidateToken", "invalid-token").Return(nil, token.ErrInvalidToken)
+	s.mockTokenService.On("ValidateToken", "invalid-token").Return(nil, errs.ErrInvalidToken)
 
-	user, tokenId, err := authService.validateRefreshToken(ctx, "invalid-token")
-	assert.Error(t, err)
-	assert.Equal(t, ErrInvalidRefreshToken, err)
-	assert.Nil(t, user)
-	assert.Empty(t, tokenId)
-
-	mockTokenService.AssertExpectations(t)
+	user, tokenID, err := s.service.validateRefreshToken(ctx, "invalid-token")
+	s.Require().Error(err)
+	s.ErrorIs(err, errs.ErrInvalidRefreshToken)
+	s.Nil(user)
+	s.Empty(tokenID)
 }
 
-func TestValidateRefreshToken_RefreshTokenMismatch(t *testing.T) {
-	ctx, mockTokenService, _, authService := suite()
-
-	tokenId := "test-token-id"
-	userId := int64(123)
+func (s *AuthServiceSuite) TestValidateRefreshToken_RefreshTokenMismatch() {
+	ctx := context.Background()
+	tokenID := "test-token-id"
+	userID := int64(123)
 	refreshToken := "refresh-token"
-
 	claims := jwt.MapClaims{
-		"userId":  float64(userId),
-		"tokenId": tokenId,
+		"userId":  float64(userID),
+		"tokenId": tokenID,
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	}
 
-	mockTokenService.On("ValidateToken", refreshToken).Return(claims, nil)
-	mockTokenService.On("GetTokenByID", ctx, tokenId).Return(&models.TokenModel{
-		ID:           tokenId,
+	s.mockTokenService.On("ValidateToken", refreshToken).Return(claims, nil)
+	s.mockTokenService.On("GetTokenByID", ctx, tokenID).Return(&models.TokenModel{
+		ID:           tokenID,
 		RefreshToken: "different-refresh-token",
-		UserId:       userId,
+		UserId:       userID,
 	}, nil)
 
-	user, resultTokenId, err := authService.validateRefreshToken(ctx, refreshToken)
-	assert.Error(t, err)
-	assert.Equal(t, ErrInvalidRefreshToken, err)
-	assert.Nil(t, user)
-	assert.Empty(t, resultTokenId)
-
-	mockTokenService.AssertExpectations(t)
+	user, resultTokenID, err := s.service.validateRefreshToken(ctx, refreshToken)
+	s.Require().Error(err)
+	s.ErrorIs(err, errs.ErrInvalidRefreshToken)
+	s.Nil(user)
+	s.Empty(resultTokenID)
 }

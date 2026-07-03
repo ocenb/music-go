@@ -2,11 +2,13 @@ package suite
 
 import (
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+
 	"github.com/ocenb/music-go/user-service/internal/models"
 )
 
@@ -38,13 +40,14 @@ func ValidUsername() string {
 
 	length := rand.Intn(13) + 3
 
-	username := string(starters[rand.Intn(len(starters))])
+	var username strings.Builder
+	username.WriteString(string(starters[rand.Intn(len(starters))]))
 
 	for i := 1; i < length; i++ {
-		username += string(chars[rand.Intn(len(chars))])
+		username.WriteString(string(chars[rand.Intn(len(chars))]))
 	}
 
-	return username
+	return username.String()
 }
 
 func validPassword() string {
@@ -52,12 +55,12 @@ func validPassword() string {
 
 	length := rand.Intn(9) + 8
 
-	password := ""
+	var password strings.Builder
 	for range length {
-		password += string(chars[rand.Intn(len(chars))])
+		password.WriteString(string(chars[rand.Intn(len(chars))]))
 	}
 
-	return password
+	return password.String()
 }
 
 func FakeUser() *models.UserFullModel {

@@ -2,86 +2,42 @@ package handlers
 
 import (
 	"context"
+	"log/slog"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/ocenb/music-go/user-service/internal/utils"
 	"github.com/ocenb/music-protos/gen/userservice"
+
+	"github.com/ocenb/music-go/user-service/internal/logger"
+	"github.com/ocenb/music-go/user-service/internal/middlewares"
 )
 
-func (s *UserServer) Register(ctx context.Context, req *userservice.RegisterRequest) (*userservice.RegisterResponse, error) {
-	user, err := s.authService.Register(ctx, req.Username, req.Email, req.Password)
+func (h *UserServer) Register(ctx context.Context, req *userservice.RegisterRequest) (*userservice.RegisterResponse, error) {
+	log := logger.FromContext(ctx).With(slog.String("username", req.Username))
+	ctx = logger.IntoContext(ctx, log)
+
+	user, err := h.authService.Register(ctx, req.Username, req.Email, req.Password)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, &LogWrappedError{Err: err, Logger: log})
 	}
 
-	res := &userservice.RegisterResponse{
+	return &userservice.RegisterResponse{
 		User: &userservice.UserPrivateModel{
 			Id:        user.Id,
 			Username:  user.Username,
 			Email:     user.Email,
 			CreatedAt: user.CreatedAt,
 		},
-	}
-	return res, nil
+	}, nil
 }
 
-func (s *UserServer) Login(ctx context.Context, req *userservice.LoginRequest) (*userservice.LoginResponse, error) {
-	user, accessToken, refreshToken, err := s.authService.Login(ctx, req.Email, req.Password)
+func (h *UserServer) Login(ctx context.Context, req *userservice.LoginRequest) (*userservice.LoginResponse, error) {
+	user, accessToken, refreshToken, err := h.authService.Login(ctx, req.Email, req.Password)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, err)
 	}
 
-	res := &userservice.LoginResponse{
-		User: &userservice.UserPrivateModel{
-			Id:        user.Id,
-			Username:  user.Username,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
-		},
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-	}
-	return res, nil
-}
-
-func (s *UserServer) Logout(ctx context.Context, req *emptypb.Empty) (*userservice.LogoutResponse, error) {
-	_, tokenId, err := utils.GetInfoFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.authService.Logout(ctx, tokenId)
-	if err != nil {
-		return nil, err
-	}
-
-	res := &userservice.LogoutResponse{Success: true}
-	return res, nil
-}
-
-func (s *UserServer) LogoutAll(ctx context.Context, req *emptypb.Empty) (*userservice.LogoutAllResponse, error) {
-	user, _, err := utils.GetInfoFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	err = s.authService.LogoutAll(ctx, user.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	res := &userservice.LogoutAllResponse{Success: true}
-	return res, nil
-}
-
-func (s *UserServer) Refresh(ctx context.Context, req *userservice.RefreshRequest) (*userservice.RefreshResponse, error) {
-	user, accessToken, refreshToken, err := s.authService.Refresh(ctx, req.RefreshToken)
-	if err != nil {
-		return nil, err
-	}
-
-	res := &userservice.RefreshResponse{
+	return &userservice.LoginResponse{
 		User: &userservice.UserPrivateModel{
 			Id:        user.Id,
 			Username:  user.Username,
@@ -90,17 +46,48 @@ func (s *UserServer) Refresh(ctx context.Context, req *userservice.RefreshReques
 		},
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}
-	return res, nil
+	}, nil
 }
 
-func (s *UserServer) Verify(ctx context.Context, req *userservice.VerifyRequest) (*userservice.VerifyResponse, error) {
-	user, accessToken, refreshToken, err := s.authService.Verify(ctx, req.VerifyToken)
+func (h *UserServer) Logout(ctx context.Context, _ *emptypb.Empty) (*userservice.LogoutResponse, error) {
+	user, tokenID, err := middlewares.AuthFromContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, err)
 	}
 
-	res := &userservice.VerifyResponse{
+	log := logger.FromContext(ctx).With(slog.Int64("user_id", user.ID))
+	ctx = logger.IntoContext(ctx, log)
+
+	if err := h.authService.Logout(ctx, tokenID); err != nil {
+		return nil, handleError(ctx, &LogWrappedError{Err: err, Logger: log})
+	}
+
+	return &userservice.LogoutResponse{Success: true}, nil
+}
+
+func (h *UserServer) LogoutAll(ctx context.Context, _ *emptypb.Empty) (*userservice.LogoutAllResponse, error) {
+	user, _, err := middlewares.AuthFromContext(ctx)
+	if err != nil {
+		return nil, handleError(ctx, err)
+	}
+
+	log := logger.FromContext(ctx).With(slog.Int64("user_id", user.ID))
+	ctx = logger.IntoContext(ctx, log)
+
+	if err := h.authService.LogoutAll(ctx, user.ID); err != nil {
+		return nil, handleError(ctx, &LogWrappedError{Err: err, Logger: log})
+	}
+
+	return &userservice.LogoutAllResponse{Success: true}, nil
+}
+
+func (h *UserServer) Refresh(ctx context.Context, req *userservice.RefreshRequest) (*userservice.RefreshResponse, error) {
+	user, accessToken, refreshToken, err := h.authService.Refresh(ctx, req.RefreshToken)
+	if err != nil {
+		return nil, handleError(ctx, err)
+	}
+
+	return &userservice.RefreshResponse{
 		User: &userservice.UserPrivateModel{
 			Id:        user.Id,
 			Username:  user.Username,
@@ -109,39 +96,58 @@ func (s *UserServer) Verify(ctx context.Context, req *userservice.VerifyRequest)
 		},
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}
-	return res, nil
+	}, nil
 }
 
-func (s *UserServer) NewVerification(ctx context.Context, req *userservice.NewVerificationRequest) (*userservice.NewVerificationResponse, error) {
-	user, err := s.authService.NewVerification(ctx, req.Email, req.Password)
+func (h *UserServer) Verify(ctx context.Context, req *userservice.VerifyRequest) (*userservice.VerifyResponse, error) {
+	user, accessToken, refreshToken, err := h.authService.Verify(ctx, req.VerifyToken)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, err)
 	}
 
-	res := &userservice.NewVerificationResponse{
+	return &userservice.VerifyResponse{
 		User: &userservice.UserPrivateModel{
 			Id:        user.Id,
 			Username:  user.Username,
 			Email:     user.Email,
 			CreatedAt: user.CreatedAt,
 		},
-	}
-	return res, nil
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
 }
 
-func (s *UserServer) ChangeEmail(ctx context.Context, req *userservice.ChangeEmailRequest) (*userservice.ChangeEmailResponse, error) {
-	user, _, err := utils.GetInfoFromContext(ctx)
+func (h *UserServer) NewVerification(ctx context.Context, req *userservice.NewVerificationRequest) (*userservice.NewVerificationResponse, error) {
+	user, err := h.authService.NewVerification(ctx, req.Email, req.Password)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, err)
 	}
 
-	updatedUser, accessToken, refreshToken, err := s.authService.ChangeEmail(ctx, user.ID, req.Email)
+	return &userservice.NewVerificationResponse{
+		User: &userservice.UserPrivateModel{
+			Id:        user.Id,
+			Username:  user.Username,
+			Email:     user.Email,
+			CreatedAt: user.CreatedAt,
+		},
+	}, nil
+}
+
+func (h *UserServer) ChangeEmail(ctx context.Context, req *userservice.ChangeEmailRequest) (*userservice.ChangeEmailResponse, error) {
+	user, _, err := middlewares.AuthFromContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, err)
 	}
 
-	res := &userservice.ChangeEmailResponse{
+	log := logger.FromContext(ctx).With(slog.Int64("user_id", user.ID))
+	ctx = logger.IntoContext(ctx, log)
+
+	updatedUser, accessToken, refreshToken, err := h.authService.ChangeEmail(ctx, user.ID, req.Email)
+	if err != nil {
+		return nil, handleError(ctx, &LogWrappedError{Err: err, Logger: log})
+	}
+
+	return &userservice.ChangeEmailResponse{
 		User: &userservice.UserPrivateModel{
 			Id:        updatedUser.Id,
 			Username:  updatedUser.Username,
@@ -150,22 +156,24 @@ func (s *UserServer) ChangeEmail(ctx context.Context, req *userservice.ChangeEma
 		},
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}
-	return res, nil
+	}, nil
 }
 
-func (s *UserServer) ChangePassword(ctx context.Context, req *userservice.ChangePasswordRequest) (*userservice.ChangePasswordResponse, error) {
-	user, _, err := utils.GetInfoFromContext(ctx)
+func (h *UserServer) ChangePassword(ctx context.Context, req *userservice.ChangePasswordRequest) (*userservice.ChangePasswordResponse, error) {
+	user, _, err := middlewares.AuthFromContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, err)
 	}
 
-	updatedUser, accessToken, refreshToken, err := s.authService.ChangePassword(ctx, user.ID, user.Password, req.OldPassword, req.NewPassword)
+	log := logger.FromContext(ctx).With(slog.Int64("user_id", user.ID))
+	ctx = logger.IntoContext(ctx, log)
+
+	updatedUser, accessToken, refreshToken, err := h.authService.ChangePassword(ctx, user.ID, user.Password, req.OldPassword, req.NewPassword)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, &LogWrappedError{Err: err, Logger: log})
 	}
 
-	res := &userservice.ChangePasswordResponse{
+	return &userservice.ChangePasswordResponse{
 		User: &userservice.UserPrivateModel{
 			Id:        updatedUser.Id,
 			Username:  updatedUser.Username,
@@ -174,24 +182,22 @@ func (s *UserServer) ChangePassword(ctx context.Context, req *userservice.Change
 		},
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-	}
-	return res, nil
+	}, nil
 }
 
-func (s *UserServer) CheckAuth(ctx context.Context, req *emptypb.Empty) (*userservice.CheckAuthResponse, error) {
-	user, tokenId, err := utils.GetInfoFromContext(ctx)
+func (h *UserServer) CheckAuth(ctx context.Context, _ *emptypb.Empty) (*userservice.CheckAuthResponse, error) {
+	user, tokenID, err := middlewares.AuthFromContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, handleError(ctx, err)
 	}
 
-	res := &userservice.CheckAuthResponse{
+	return &userservice.CheckAuthResponse{
 		User: &userservice.UserPrivateModel{
 			Id:        user.ID,
 			Username:  user.Username,
 			Email:     user.Email,
 			CreatedAt: user.CreatedAt,
 		},
-		TokenId: tokenId,
-	}
-	return res, nil
+		TokenId: tokenID,
+	}, nil
 }

@@ -1,36 +1,42 @@
 services:
-  postgres:
-    image: postgres:17-alpine
-    container_name: content-service-db
-    env_file:
-      - .env
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - music-go-network
-
   app:
     build: .
-    container_name: content-service-app
+    ports:
+      - "${PORT:-3000}:3000"
     env_file:
       - .env
-    ports:
-      - "3000:3000"
     volumes:
-      - ./.env:/app/.env
       - ./config:/app/config
     depends_on:
-      - postgres
-    restart: always
+      postgres:
+        condition: service_healthy
+    networks:
+      - music-go-network
     dns:
       - 8.8.8.8
       - 8.8.4.4
+
+  postgres:
+    image: postgres:18.3-alpine3.23
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-user-service-db}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgres_data:/var/lib/postgresql
     networks:
       - music-go-network
 
 volumes:
   postgres_data:
-    driver: local
 
 networks:
   music-go-network:

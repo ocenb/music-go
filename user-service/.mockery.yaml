@@ -1,0 +1,7 @@
+inpackage: true
+require-template-schema-exists: false
+template: testify
+packages:
+  github.com/ocenb/music-go/user-service/internal/services/auth:
+    config:
+      all: true

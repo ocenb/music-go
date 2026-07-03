@@ -1,17 +1,15 @@
 services:
   app:
     build: .
-    container_name: notification-service-app
+    ports:
+      - "${PORT:-9089}:9089"
     env_file:
       - .env
-    ports:
-      - "9089:9089"
     volumes:
-      - ./.env:/app/.env
       - ./config:/app/config
     depends_on:
-      - kafka
-    restart: always
+      kafka:
+        condition: service_healthy
     networks:
       - music-go-network
 
@@ -44,6 +42,12 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
@@ -79,11 +83,8 @@ services:
 
 volumes:
   kafka_data:
-    driver: local
   zookeeper_data:
-    driver: local
   zookeeper_log:
-    driver: local
 
 networks:
   music-go-network:

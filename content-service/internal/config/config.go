@@ -37,7 +37,8 @@ type Config struct {
 	CloudinaryApiSecret  string   `env:"CLOUDINARY_API_SECRET" env-required:"true"`
 	SearchServiceAddress string   `env:"SEARCH_SERVICE_ADDRESS" env-required:"true"`
 	UserServiceAddress   string   `env:"USER_SERVICE_ADDRESS" env-required:"true"`
-	KafkaBrokers         []string `env:"KAFKA_BROKERS" env-required:"true"`
+	KafkaBrokers          []string `env:"KAFKA_BROKERS" env-required:"true"`
+	InternalServiceSecret string   `env:"INTERNAL_SERVICE_SECRET" env-required:"true"`
 }
 
 func MustLoad() *Config {

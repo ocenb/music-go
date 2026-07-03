@@ -2,163 +2,141 @@ package token
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"log/slog"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/ocenb/music-go/user-service/internal/config"
+
+	"github.com/ocenb/music-go/user-service/internal/errs"
 	"github.com/ocenb/music-go/user-service/internal/models"
-	tokenrepo "github.com/ocenb/music-go/user-service/internal/repos/token"
-	"github.com/ocenb/music-go/user-service/internal/utils"
 )
 
-type TokenServiceInterface interface {
+type Repo interface {
 	GetTokenByID(ctx context.Context, tokenID string) (*models.TokenModel, error)
-	CreateTokens(ctx context.Context, userID int64) (string, string, error)
-	ValidateToken(tokenString string) (jwt.MapClaims, error)
-	RevokeToken(ctx context.Context, tokenID string) error
-	RevokeAllTokens(ctx context.Context, userID int64) error
-	CleanupExpiredTokens(log *slog.Logger)
-	GenerateVerificationToken() string
+	CreateToken(ctx context.Context, tokenID string, userID int64, refreshToken string, expiresAt time.Time) error
+	DeleteTokenByID(ctx context.Context, tokenID string) error
+	DeleteAllUserTokens(ctx context.Context, userID int64) error
+	DeleteExpiredTokens(ctx context.Context) error
 }
 
-type TokenService struct {
-	tokenRepo tokenrepo.TokenRepoInterface
-	cfg       *config.Config
-	log       *slog.Logger
+type Service struct {
+	repo                 Repo
+	jwtSecret            string
+	accessTokenLiveTime  time.Duration
+	refreshTokenLiveTime time.Duration
 }
 
-func NewTokenService(cfg *config.Config, log *slog.Logger, tokenRepo tokenrepo.TokenRepoInterface) TokenServiceInterface {
-	return &TokenService{
-		tokenRepo: tokenRepo,
-		cfg:       cfg,
-		log:       log,
+func New(
+	repo Repo,
+	jwtSecret string,
+	accessTokenLiveTime time.Duration,
+	refreshTokenLiveTime time.Duration,
+) *Service {
+	return &Service{
+		repo:                 repo,
+		jwtSecret:            jwtSecret,
+		accessTokenLiveTime:  accessTokenLiveTime,
+		refreshTokenLiveTime: refreshTokenLiveTime,
 	}
 }
 
-func (s *TokenService) GetTokenByID(ctx context.Context, tokenID string) (*models.TokenModel, error) {
-	s.log.Debug("Getting token by ID", slog.String("token_id", tokenID))
-	token, err := s.tokenRepo.GetTokenByID(ctx, tokenID)
+func (s *Service) GetTokenByID(ctx context.Context, tokenID string) (*models.TokenModel, error) {
+	token, err := s.repo.GetTokenByID(ctx, tokenID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			s.log.Debug("Token not found", slog.String("token_id", tokenID))
-			return nil, ErrTokenNotFound
-		}
-		s.log.Error("Failed to get token by ID", slog.String("token_id", tokenID), utils.ErrLog(err))
-		return nil, utils.InternalError(err, "failed to get token by ID")
+		return nil, fmt.Errorf("TokenService.GetTokenByID: %w", err)
 	}
-	s.log.Debug("Token found", slog.String("token_id", tokenID), slog.Int64("user_id", token.UserId))
 	return token, nil
 }
 
-func (s *TokenService) CreateTokens(ctx context.Context, userID int64) (string, string, error) {
-	s.log.Debug("Creating tokens for user", slog.Int64("user_id", userID))
-	accessToken, refreshToken, tokenId, expiresAt, err := s.generateTokens(userID)
+func (s *Service) CreateTokens(ctx context.Context, userID int64) (string, string, error) {
+	accessToken, refreshToken, tokenID, expiresAt, err := s.generateTokens(userID)
 	if err != nil {
-		s.log.Error("Failed to generate tokens", slog.Int64("user_id", userID), utils.ErrLog(err))
-		return "", "", err
+		return "", "", fmt.Errorf("TokenService.CreateTokens: %w", err)
 	}
 
-	err = s.tokenRepo.CreateToken(ctx, tokenId, userID, refreshToken, expiresAt)
-	if err != nil {
-		s.log.Error("Failed to create token in db", slog.Int64("user_id", userID), slog.String("token_id", tokenId), utils.ErrLog(err))
-		return "", "", utils.InternalError(err, "failed to create token in db")
+	if err := s.repo.CreateToken(ctx, tokenID, userID, refreshToken, expiresAt); err != nil {
+		return "", "", fmt.Errorf("TokenService.CreateTokens: %w", err)
 	}
 
-	s.log.Info("Tokens created successfully", slog.Int64("user_id", userID), slog.String("token_id", tokenId), slog.Time("expires_at", expiresAt))
 	return accessToken, refreshToken, nil
 }
 
-func (s *TokenService) ValidateToken(tokenString string) (jwt.MapClaims, error) {
+func (s *Service) ValidateToken(tokenString string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, ErrInvalidSigningMethod
+			return nil, errs.ErrInvalidSigningMethod
 		}
-		return []byte(s.cfg.JWTSecret), nil
+		return []byte(s.jwtSecret), nil
 	})
-
 	if err != nil {
-		return nil, ErrInvalidToken
+		return nil, fmt.Errorf("TokenService.ValidateToken: %w: %w", errs.ErrInvalidToken, err)
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		return claims, nil
 	}
 
-	return nil, ErrInvalidToken
+	return nil, fmt.Errorf("TokenService.ValidateToken: %w", errs.ErrInvalidToken)
 }
 
-func (s *TokenService) RevokeToken(ctx context.Context, tokenID string) error {
-	s.log.Debug("Revoking token", slog.String("token_id", tokenID))
-	err := s.tokenRepo.DeleteTokenByID(ctx, tokenID)
-	if err != nil {
-		s.log.Error("Failed to revoke token", slog.String("token_id", tokenID), utils.ErrLog(err))
-		return utils.InternalError(err, "failed to revoke token")
+func (s *Service) RevokeToken(ctx context.Context, tokenID string) error {
+	if err := s.repo.DeleteTokenByID(ctx, tokenID); err != nil {
+		return fmt.Errorf("TokenService.RevokeToken: %w", err)
 	}
-	s.log.Info("Token revoked successfully", slog.String("token_id", tokenID))
 	return nil
 }
 
-func (s *TokenService) RevokeAllTokens(ctx context.Context, userID int64) error {
-	s.log.Debug("Revoking all tokens for user", slog.Int64("user_id", userID))
-	err := s.tokenRepo.DeleteAllUserTokens(ctx, userID)
-	if err != nil {
-		s.log.Error("Failed to revoke all tokens", slog.Int64("user_id", userID), utils.ErrLog(err))
-		return utils.InternalError(err, "failed to revoke all tokens")
+func (s *Service) RevokeAllTokens(ctx context.Context, userID int64) error {
+	if err := s.repo.DeleteAllUserTokens(ctx, userID); err != nil {
+		return fmt.Errorf("TokenService.RevokeAllTokens: %w", err)
 	}
-	s.log.Info("All tokens revoked successfully for user", slog.Int64("user_id", userID))
 	return nil
 }
 
-func (s *TokenService) CleanupExpiredTokens(log *slog.Logger) {
+func (s *Service) CleanupExpiredTokens() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if err := s.tokenRepo.DeleteExpiredTokens(ctx); err != nil {
-		log.Error("Failed to cleanup expired tokens", utils.ErrLog(err))
-	} else {
-		log.Info("Successfully cleaned up expired tokens")
+	if err := s.repo.DeleteExpiredTokens(ctx); err != nil {
+		return fmt.Errorf("TokenService.CleanupExpiredTokens: %w", err)
 	}
+	return nil
 }
 
-func (s *TokenService) GenerateVerificationToken() string {
-	token := uuid.New().String()
-	s.log.Debug("Generated verification token")
-	return token
+func (s *Service) GenerateVerificationToken() string {
+	return uuid.New().String()
 }
 
-func (s *TokenService) generateTokens(userID int64) (string, string, string, time.Time, error) {
-	tokenId := uuid.New().String()
-	refreshExpiresAt := time.Now().Add(s.cfg.RefreshTokenLiveTime)
-	accessExpiresAt := time.Now().Add(s.cfg.AccessTokenLiveTime)
+func (s *Service) generateTokens(userID int64) (string, string, string, time.Time, error) {
+	tokenID := uuid.New().String()
+	refreshExpiresAt := time.Now().Add(s.refreshTokenLiveTime)
+	accessExpiresAt := time.Now().Add(s.accessTokenLiveTime)
 
 	accessPayload := jwt.MapClaims{
 		"userId":  userID,
-		"tokenId": tokenId,
+		"tokenId": tokenID,
 		"exp":     accessExpiresAt.Unix(),
 		"iat":     time.Now().Unix(),
 	}
 	refreshPayload := jwt.MapClaims{
 		"userId":  userID,
-		"tokenId": tokenId,
+		"tokenId": tokenID,
 		"exp":     refreshExpiresAt.Unix(),
 		"iat":     time.Now().Unix(),
 	}
 
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessPayload)
-	accessTokenString, err := accessToken.SignedString([]byte(s.cfg.JWTSecret))
+	accessTokenString, err := accessToken.SignedString([]byte(s.jwtSecret))
 	if err != nil {
-		return "", "", "", time.Time{}, utils.InternalError(err, "failed to sign access token")
+		return "", "", "", time.Time{}, fmt.Errorf("TokenService.generateTokens: failed to sign access token: %w", err)
 	}
 
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshPayload)
-	refreshTokenString, err := refreshToken.SignedString([]byte(s.cfg.JWTSecret))
+	refreshTokenString, err := refreshToken.SignedString([]byte(s.jwtSecret))
 	if err != nil {
-		return "", "", "", time.Time{}, utils.InternalError(err, "failed to sign refresh token")
+		return "", "", "", time.Time{}, fmt.Errorf("TokenService.generateTokens: failed to sign refresh token: %w", err)
 	}
 
-	return accessTokenString, refreshTokenString, tokenId, refreshExpiresAt, nil
+	return accessTokenString, refreshTokenString, tokenID, refreshExpiresAt, nil
 }

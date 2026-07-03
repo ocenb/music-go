@@ -1,0 +1,37 @@
+version: "2"
+
+linters:
+  enable:
+    - gocritic
+    - gosec
+    # - revive
+  exclusions:
+    rules:
+      - path: internal/
+        linters:
+          - revive
+        text: "exported .* should have comment or be unexported"
+      - path: "(cmd|internal|migrations)/.*\\.go"
+        linters:
+          - revive
+        text: "package-comments: should have a package comment"
+      - path: internal/storage/migrator/migrator\.go
+        linters:
+          - revive
+        text: "blank-imports"
+      - path: tests/
+        linters:
+          - gosec
+        text: "G404:"
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/ocenb/music-go/user-service
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

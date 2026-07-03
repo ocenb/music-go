@@ -3,12 +3,13 @@ package tests
 import (
 	"testing"
 
-	"github.com/ocenb/music-go/user-service/tests/suite"
 	"github.com/ocenb/music-protos/gen/userservice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/ocenb/music-go/user-service/tests/suite"
 )
 
 func TestRegister(t *testing.T) {

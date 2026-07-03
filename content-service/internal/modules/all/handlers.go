@@ -1,7 +1,9 @@
 package all
 
 import (
+	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ocenb/music-go/content-service/internal/utils"
@@ -9,7 +11,9 @@ import (
 
 type AllHandlerInterface interface {
 	deleteAll(c *gin.Context)
+	deleteUserContent(c *gin.Context)
 	RegisterHandlers(router *gin.RouterGroup)
+	RegisterInternalHandlers(router *gin.RouterGroup)
 }
 
 type AllHandler struct {
@@ -38,7 +42,26 @@ func (h *AllHandler) deleteAll(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *AllHandler) deleteUserContent(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("userID"), 10, 64)
+	if err != nil {
+		utils.BadRequestError(c, errors.New("invalid user id"))
+		return
+	}
+
+	err = h.allService.DeleteAll(c.Request.Context(), userID)
+	if err != nil {
+		utils.InternalError(c, err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 func (h *AllHandler) RegisterHandlers(router *gin.RouterGroup) {
-	trackRouter := router.Group("/all")
-	trackRouter.DELETE("", h.deleteAll)
+	router.DELETE("/all", h.deleteAll)
+}
+
+func (h *AllHandler) RegisterInternalHandlers(router *gin.RouterGroup) {
+	router.DELETE("/users/:userID", h.deleteUserContent)
 }
