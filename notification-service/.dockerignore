@@ -6,5 +6,4 @@
 !go.mod
 !go.sum
 
-**/mocks/
 **/*_test.go

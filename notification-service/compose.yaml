@@ -1,15 +1,21 @@
 services:
   app:
     build: .
-    ports:
-      - "${PORT:-9089}:9089"
     env_file:
       - .env
+    environment:
+      KAFKA_BROKERS: kafka:19092
     volumes:
       - ./config:/app/config
     depends_on:
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pidof main > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - music-go-network
 

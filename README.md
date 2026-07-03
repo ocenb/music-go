@@ -17,7 +17,7 @@
 
 ### Proto файлы
 
-https://github.com/ocenb/music-protos
+<https://github.com/ocenb/music-protos>
 
 ### User Service
 

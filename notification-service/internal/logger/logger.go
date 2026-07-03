@@ -1,54 +1,41 @@
 package logger
 
 import (
-	"io"
+	"context"
 	"log/slog"
 	"os"
-
-	"github.com/ocenb/music-go/notification-service/internal/config"
 )
 
-type HandlerType string
+func New(level int, handlerType, environment string) *slog.Logger {
+	logLevel := slog.Level(level)
 
-const (
-	TextHandler  HandlerType = "text"
-	JSONHandler  HandlerType = "json"
-	DefaultLevel slog.Level  = slog.LevelInfo
-)
+	opts := &slog.HandlerOptions{
+		Level:     logLevel,
+		AddSource: environment == "local" || logLevel == slog.LevelDebug,
+	}
 
-func Setup(cfg *config.Config) *slog.Logger {
-	handlerType := cfg.LogHandler
-	logLevel := cfg.LogLevel
+	var handler slog.Handler
 
-	level := slog.LevelInfo
-
-	if logLevel == int(slog.LevelDebug) || logLevel == int(slog.LevelInfo) || logLevel == int(slog.LevelWarn) || logLevel == int(slog.LevelError) {
-		level = slog.Level(logLevel)
+	if handlerType == "json" {
+		handler = slog.NewJSONHandler(os.Stderr, opts)
 	} else {
-		slog.Error("Invalid log level, using default level Info")
+		handler = slog.NewTextHandler(os.Stderr, opts)
 	}
 
-	opts := &slog.HandlerOptions{Level: level}
-	var log *slog.Logger
-
-	switch handlerType {
-	case string(TextHandler):
-		log = slog.New(slog.NewTextHandler(os.Stdout, opts))
-	case string(JSONHandler):
-		log = slog.New(slog.NewJSONHandler(os.Stdout, opts))
-	default:
-		slog.Error("Invalid log handler type, using default TextHandler")
-		log = slog.New(slog.NewTextHandler(os.Stdout, opts))
-	}
-
-	log = log.With(slog.String("env", cfg.Environment))
-
-	return log
+	return slog.New(handler).With(slog.String("env", environment))
 }
 
-func NewForTest() *slog.Logger {
-	opts := &slog.HandlerOptions{Level: slog.LevelError + 1}
-	handler := slog.NewTextHandler(io.Discard, opts)
+type loggerKeyType string
 
-	return slog.New(handler)
+const loggerKey loggerKeyType = "logger"
+
+func IntoContext(ctx context.Context, log *slog.Logger) context.Context {
+	return context.WithValue(ctx, loggerKey, log)
+}
+
+func FromContext(ctx context.Context) *slog.Logger {
+	if log, ok := ctx.Value(loggerKey).(*slog.Logger); ok {
+		return log
+	}
+	return slog.Default()
 }

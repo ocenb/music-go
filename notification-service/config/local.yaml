@@ -1,2 +1,3 @@
 log_level: 0
 log_handler: text
+shutdown_timeout: 10s

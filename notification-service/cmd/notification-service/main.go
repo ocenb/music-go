@@ -5,64 +5,84 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
-	"time"
 
+	"github.com/ocenb/music-go/notification-service/internal/clients/smtp"
 	"github.com/ocenb/music-go/notification-service/internal/config"
-	"github.com/ocenb/music-go/notification-service/internal/handlers"
-	"github.com/ocenb/music-go/notification-service/internal/kafka"
 	"github.com/ocenb/music-go/notification-service/internal/logger"
-	"github.com/ocenb/music-go/notification-service/internal/services/email"
-	"github.com/ocenb/music-go/notification-service/internal/utils"
+	"github.com/ocenb/music-go/notification-service/internal/logger/logattr"
+	"github.com/ocenb/music-go/notification-service/internal/server"
+	notificationservice "github.com/ocenb/music-go/notification-service/internal/services/notification"
+	kafkastorage "github.com/ocenb/music-go/notification-service/internal/storage/kafka"
 )
 
 func main() {
-	startTime := time.Now()
-	cfg := config.MustLoad()
-	log := logger.Setup(cfg)
+	os.Exit(run())
+}
 
-	log.Info("Connecting to smtp",
-		slog.String("host", cfg.SMTPHost),
-		slog.Int("port", cfg.SMTPPort),
-	)
-	emailService := email.NewEmailService(cfg)
-
-	log.Info("Connecting to kafka",
-		slog.String("brokers", strings.Join(cfg.KafkaBrokers, ",")),
-		slog.String("topic", cfg.KafkaTopic),
-		slog.String("group_id", cfg.KafkaGroupID),
-	)
-
-	consumer, err := kafka.NewConsumer(cfg)
+func run() int {
+	cfg, err := config.Load()
 	if err != nil {
-		log.Error("Failed to create Kafka consumer", utils.ErrLog(err))
-		os.Exit(1)
+		//nolint:sloglint // default logger is used before initialization
+		slog.Error("cannot load config", logattr.Err(err))
+		return 1
+	}
+	log := logger.New(cfg.Log.Level, cfg.Log.Handler, cfg.Environment)
+	slog.SetDefault(log)
+
+	defer log.Info("app stopped")
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	log.Info("connecting to kafka",
+		slog.String("topic", cfg.Kafka.Topic),
+		slog.String("group_id", cfg.Kafka.GroupID),
+	)
+	kafkaConsumer, err := kafkastorage.New(cfg.Kafka)
+	if err != nil {
+		log.Error("initialization failed", logattr.Err(err))
+		return 1
 	}
 	defer func() {
-		log.Info("Closing kafka consumer")
-		if err := consumer.Close(); err != nil {
-			log.Error("Failed to close kafka consumer", utils.ErrLog(err))
+		log.Info("closing kafka consumer")
+		if err := kafkaConsumer.Close(); err != nil {
+			log.Error("failed to close kafka consumer", logattr.Err(err))
 		}
 	}()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	log.Info("connecting to smtp",
+		slog.String("host", cfg.SMTP.Host),
+		slog.Int("port", cfg.SMTP.Port),
+	)
+	smtpClient := smtp.New(cfg.SMTP)
+	svc := notificationservice.New(smtpClient)
 
-	log.Info("Starting notification service...")
-	err = consumer.Consume(ctx, handlers.EmailNotificationHandler(log, emailService))
-	if err != nil {
-		log.Error("Error consuming messages", utils.ErrLog(err))
+	srv := server.New(svc, kafkaConsumer, log)
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		serverErrors <- srv.Start(ctx)
+	}()
+
+	var serverErr error
+	select {
+	case serverErr = <-serverErrors:
+		if serverErr != nil {
+			log.Error("consumer crashed", logattr.Err(serverErr))
+		} else {
+			log.Info("consumer stopped")
+		}
+	case <-ctx.Done():
+		log.Info("received shutdown signal")
 	}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
-	<-stop
+	if err := srv.Stop(); err != nil {
+		log.Error("consumer shutdown error", logattr.Err(err))
+	}
 
-	shutdownStart := time.Now()
-	cancel()
-
-	log.Info("Service shutdown complete",
-		slog.Duration("shutdown_time", time.Since(shutdownStart)),
-		slog.Duration("uptime", time.Since(startTime)))
+	if serverErr != nil {
+		return 1
+	}
+	return 0
 }
