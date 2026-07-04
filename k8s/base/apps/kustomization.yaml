@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - user-service/deployment.yaml
+  - user-service/service.yaml
+  - user-service/configmap.yaml
+  - user-service/secret.yaml
+  - content-service/deployment.yaml
+  - content-service/service.yaml
+  - content-service/configmap.yaml
+  - content-service/secret.yaml
+  - search-service/deployment.yaml
+  - search-service/service.yaml
+  - search-service/configmap.yaml
+  - search-service/secret.yaml
+  - notification-service/deployment.yaml
+  - notification-service/configmap.yaml
+  - notification-service/secret.yaml

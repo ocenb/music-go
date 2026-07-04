@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service-deployment
+  labels:
+    app: search-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: search-service
+  template:
+    metadata:
+      labels:
+        app: search-service
+    spec:
+      containers:
+        - name: search-service
+          image: music-go/search-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9091
+          env:
+            - name: ENVIRONMENT
+              value: local
+            - name: ELASTIC_HOST
+              value: elasticsearch-service
+            - name: ELASTIC_PORT
+              value: "9200"
+            - name: ELASTIC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: search-service-secret
+                  key: ELASTIC_USER
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: search-service-secret
+                  key: ELASTIC_PASSWORD
+            - name: USER_SERVICE_ADDRESS
+              value: user-service-app:9090
+          volumeMounts:
+            - name: search-service-config-volume
+              mountPath: /app/config/local.yaml
+              subPath: local.yaml
+      volumes:
+        - name: search-service-config-volume
+          configMap:
+            name: search-service-config

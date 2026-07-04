@@ -12,7 +12,7 @@
 - PostgreSQL, Elasticsearch
 - Kafka, gRPC, HTTP(REST)
 - Gin, Buf, Ffmpeg
-- Docker, Nginx
+- Docker, Nginx, Kubernetes, Kustomize
 - Cloudinary (file storage)
 
 ### Proto файлы
@@ -123,6 +123,24 @@ docker compose up -d
 cd notification-service
 cp .env.example .env
 docker compose up -d
+```
+
+### Kubernetes
+
+Манифесты в `k8s/` (Kustomize): `base/` + `overlays/local` и `overlays/prod`.
+
+```bash
+# images
+docker build -t music-go/user-service:latest ./user-service
+docker build -t music-go/content-service:latest ./content-service
+docker build -t music-go/search-service:latest ./search-service
+docker build -t music-go/notification-service:latest ./notification-service
+
+# ingress
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/cloud/deploy.yaml
+
+# deploy
+kubectl apply -k k8s/overlays/local
 ```
 
 ## Структура кода

@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-deployment
+  labels:
+    app: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: music-go/user-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9090
+          env:
+            - name: ENVIRONMENT
+              value: local
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secret
+                  key: JWT_SECRET
+            - name: BCRYPT_COST
+              value: "12"
+            - name: POSTGRES_HOST
+              value: user-service-postgres
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: user-service-db
+            - name: POSTGRES_SSL_MODE
+              value: disable
+            - name: SEARCH_SERVICE_ADDRESS
+              value: search-service-app:9091
+            - name: CONTENT_SERVICE_URL
+              value: http://content-service-app:3000
+            - name: INTERNAL_SERVICE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secret
+                  key: INTERNAL_SERVICE_SECRET
+            - name: KAFKA_BROKERS
+              value: kafka-service:9092
+            - name: KAFKA_TOPIC
+              value: email-notifications
+          volumeMounts:
+            - name: user-service-config-volume
+              mountPath: /app/config/local.yaml
+              subPath: local.yaml
+      volumes:
+        - name: user-service-config-volume
+          configMap:
+            name: user-service-config

@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-service-deployment
+  labels:
+    app: content-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: content-service
+  template:
+    metadata:
+      labels:
+        app: content-service
+    spec:
+      containers:
+        - name: content-service
+          image: music-go/content-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: ENVIRONMENT
+              value: local
+            - name: POSTGRES_HOST
+              value: content-service-postgres
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: content-service-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: content-service-db
+            - name: POSTGRES_SSL_MODE
+              value: disable
+            - name: DOMAIN
+              value: localhost
+            - name: INTERNAL_SERVICE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secret
+                  key: INTERNAL_SERVICE_SECRET
+            - name: CLOUDINARY_CLOUD_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: content-service-secret
+                  key: CLOUDINARY_CLOUD_NAME
+            - name: CLOUDINARY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: content-service-secret
+                  key: CLOUDINARY_API_KEY
+            - name: CLOUDINARY_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: content-service-secret
+                  key: CLOUDINARY_API_SECRET
+            - name: SEARCH_SERVICE_ADDRESS
+              value: search-service-app:9091
+            - name: USER_SERVICE_ADDRESS
+              value: user-service-app:9090
+            - name: KAFKA_BROKERS
+              value: kafka-service:9092
+            - name: KAFKA_TOPIC
+              value: email-notifications
+          volumeMounts:
+            - name: content-service-config-volume
+              mountPath: /app/config/local.yaml
+              subPath: local.yaml
+      volumes:
+        - name: content-service-config-volume
+          configMap:
+            name: content-service-config

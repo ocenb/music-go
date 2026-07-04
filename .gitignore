@@ -3,3 +3,6 @@
 !.env.test.example
 .private
 .build
+k8s/**/secrets.env
+k8s/**/secrets.local.yaml
+k8s/rendered/

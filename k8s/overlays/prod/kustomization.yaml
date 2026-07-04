@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+labels:
+  - pairs:
+      env: prod
+    includeSelectors: false
+
+patches:
+  - path: patches/environment.yaml
+  - path: patches/domain.yaml
+
+images:
+  - name: music-go/user-service
+    newName: ghcr.io/music-go/user-service
+    newTag: latest
+  - name: music-go/content-service
+    newName: ghcr.io/music-go/content-service
+    newTag: latest
+  - name: music-go/search-service
+    newName: ghcr.io/music-go/search-service
+    newTag: latest
+  - name: music-go/notification-service
+    newName: ghcr.io/music-go/notification-service
+    newTag: latest

@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-postgres-deployment
+  labels:
+    app: content-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: content-postgres
+  template:
+    metadata:
+      labels:
+        app: content-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18.3-alpine3.23
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: content-service-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: content-service-db
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+                - -d
+                - content-service-db
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+                - -d
+                - content-service-db
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: postgres-data
+          emptyDir: {}

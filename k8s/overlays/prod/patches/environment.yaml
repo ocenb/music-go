@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: user-service
+          env:
+            - name: ENVIRONMENT
+              value: prod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: content-service-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: content-service
+          env:
+            - name: ENVIRONMENT
+              value: prod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: search-service-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: search-service
+          env:
+            - name: ENVIRONMENT
+              value: prod
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service-deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: notification-service
+          env:
+            - name: ENVIRONMENT
+              value: prod
