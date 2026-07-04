@@ -10,7 +10,7 @@ services:
       POSTGRES_PORT: 5432
       SEARCH_SERVICE_ADDRESS: search-service-app:9091
       USER_SERVICE_ADDRESS: user-service-app:9090
-      KAFKA_BROKERS: kafka:19092
+      KAFKA_BROKERS: kafka:9092
       KAFKA_TOPIC: email-notifications
     volumes:
       - ./config:/app/config

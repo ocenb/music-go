@@ -2,4 +2,3 @@ services:
   kafka:
     ports:
       - "${KAFKA_PORT:-9092}:9092"
-      - "${KAFKA_DOCKER_PORT:-29092}:29092"

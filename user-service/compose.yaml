@@ -10,7 +10,7 @@ services:
       POSTGRES_PORT: 5432
       SEARCH_SERVICE_ADDRESS: search-service-app:9091
       CONTENT_SERVICE_URL: http://content-service-app:3000
-      KAFKA_BROKERS: kafka:19092
+      KAFKA_BROKERS: kafka:9092
       KAFKA_TOPIC: email-notifications
     volumes:
       - ./config:/app/config
