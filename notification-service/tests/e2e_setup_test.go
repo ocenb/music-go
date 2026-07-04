@@ -3,6 +3,7 @@ package tests_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -58,7 +59,7 @@ func (r *recordingSMTPClient) waitForMessage(ctx context.Context) (recordedEmail
 		r.mu.Lock()
 		defer r.mu.Unlock()
 		if len(r.messages) == 0 {
-			return recordedEmail{}, fmt.Errorf("notification channel signaled but no messages recorded")
+			return recordedEmail{}, errors.New("notification channel signaled but no messages recorded")
 		}
 		msg := r.messages[len(r.messages)-1]
 		return msg, nil

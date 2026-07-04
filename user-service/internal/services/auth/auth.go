@@ -12,6 +12,7 @@ import (
 
 	"github.com/ocenb/music-go/user-service/internal/errs"
 	"github.com/ocenb/music-go/user-service/internal/models"
+	"github.com/ocenb/music-go/user-service/internal/services/token"
 	"github.com/ocenb/music-go/user-service/internal/storage/transactor"
 )
 
@@ -106,7 +107,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (*userservi
 		return nil, "", "", errs.ErrUserEmailNotFound
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if bcryptErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); bcryptErr != nil {
 		return nil, "", "", errs.ErrInvalidPassword
 	}
 
@@ -150,8 +151,8 @@ func (s *Service) Refresh(ctx context.Context, oldRefreshToken string) (*userser
 	var accessToken, refreshToken string
 
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
-		if err := s.tokenService.RevokeToken(txCtx, tokenID); err != nil {
-			return fmt.Errorf("failed to revoke old refresh token: %w", err)
+		if revokeErr := s.tokenService.RevokeToken(txCtx, tokenID); revokeErr != nil {
+			return fmt.Errorf("failed to revoke old refresh token: %w", revokeErr)
 		}
 
 		var tokenErr error
@@ -192,16 +193,16 @@ func (s *Service) Verify(ctx context.Context, verificationToken string) (*userse
 	var accessToken, refreshToken string
 
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
-		var err error
+		var verifyErr error
 
-		verifiedUser, err = s.userService.SetVerified(txCtx, user.ID)
-		if err != nil {
-			return fmt.Errorf("failed to set user as verified: %w", err)
+		verifiedUser, verifyErr = s.userService.SetVerified(txCtx, user.ID)
+		if verifyErr != nil {
+			return fmt.Errorf("failed to set user as verified: %w", verifyErr)
 		}
 
-		accessToken, refreshToken, err = s.tokenService.CreateTokens(txCtx, verifiedUser.Id)
-		if err != nil {
-			return fmt.Errorf("failed to create tokens: %w", err)
+		accessToken, refreshToken, verifyErr = s.tokenService.CreateTokens(txCtx, verifiedUser.Id)
+		if verifyErr != nil {
+			return fmt.Errorf("failed to create tokens: %w", verifyErr)
 		}
 
 		return nil
@@ -219,7 +220,7 @@ func (s *Service) NewVerification(ctx context.Context, email, password string) (
 		return nil, errs.ErrUserEmailNotFound
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if bcryptErr := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); bcryptErr != nil {
 		return nil, errs.ErrInvalidPassword
 	}
 
@@ -245,20 +246,20 @@ func (s *Service) ChangeEmail(ctx context.Context, userID int64, email string) (
 	var newAccessToken, newRefreshToken string
 
 	err := s.tm.Run(ctx, func(txCtx context.Context) error {
-		var err error
+		var changeErr error
 
-		user, err = s.userService.ChangeEmail(txCtx, userID, email)
-		if err != nil {
-			return fmt.Errorf("failed to change email: %w", err)
+		user, changeErr = s.userService.ChangeEmail(txCtx, userID, email)
+		if changeErr != nil {
+			return fmt.Errorf("failed to change email: %w", changeErr)
 		}
 
-		if err := s.tokenService.RevokeAllTokens(txCtx, userID); err != nil {
-			return fmt.Errorf("failed to revoke all tokens: %w", err)
+		if revokeErr := s.tokenService.RevokeAllTokens(txCtx, userID); revokeErr != nil {
+			return fmt.Errorf("failed to revoke all tokens: %w", revokeErr)
 		}
 
-		newAccessToken, newRefreshToken, err = s.tokenService.CreateTokens(txCtx, userID)
-		if err != nil {
-			return fmt.Errorf("failed to create new tokens: %w", err)
+		newAccessToken, newRefreshToken, changeErr = s.tokenService.CreateTokens(txCtx, userID)
+		if changeErr != nil {
+			return fmt.Errorf("failed to create new tokens: %w", changeErr)
 		}
 
 		return nil
@@ -284,20 +285,20 @@ func (s *Service) ChangePassword(ctx context.Context, userID int64, truePassword
 	var newAccessToken, newRefreshToken string
 
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
-		var err error
+		var changeErr error
 
-		user, err = s.userService.ChangePassword(txCtx, userID, string(hashedPassword))
-		if err != nil {
-			return fmt.Errorf("failed to change password: %w", err)
+		user, changeErr = s.userService.ChangePassword(txCtx, userID, string(hashedPassword))
+		if changeErr != nil {
+			return fmt.Errorf("failed to change password: %w", changeErr)
 		}
 
-		if err := s.tokenService.RevokeAllTokens(txCtx, userID); err != nil {
-			return fmt.Errorf("failed to revoke all tokens: %w", err)
+		if revokeErr := s.tokenService.RevokeAllTokens(txCtx, userID); revokeErr != nil {
+			return fmt.Errorf("failed to revoke all tokens: %w", revokeErr)
 		}
 
-		newAccessToken, newRefreshToken, err = s.tokenService.CreateTokens(txCtx, userID)
-		if err != nil {
-			return fmt.Errorf("failed to create new tokens: %w", err)
+		newAccessToken, newRefreshToken, changeErr = s.tokenService.CreateTokens(txCtx, userID)
+		if changeErr != nil {
+			return fmt.Errorf("failed to create new tokens: %w", changeErr)
 		}
 
 		return nil
@@ -315,12 +316,12 @@ func (s *Service) ValidateAccessToken(ctx context.Context, accessToken string) (
 		return nil, "", err
 	}
 
-	userID, ok := claims["userId"].(float64)
+	userID, ok := claims[token.ClaimUserID].(float64)
 	if !ok {
 		return nil, "", errs.ErrInvalidToken
 	}
 
-	tokenID, ok := claims["tokenId"].(string)
+	tokenID, ok := claims[token.ClaimTokenID].(string)
 	if !ok {
 		return nil, "", errs.ErrInvalidToken
 	}
@@ -343,12 +344,12 @@ func (s *Service) validateRefreshToken(ctx context.Context, refreshToken string)
 		return nil, "", errs.ErrInvalidRefreshToken
 	}
 
-	tokenID, ok := claims["tokenId"].(string)
+	tokenID, ok := claims[token.ClaimTokenID].(string)
 	if !ok {
 		return nil, "", errs.ErrInvalidTokenID
 	}
 
-	userID, ok := claims["userId"].(float64)
+	userID, ok := claims[token.ClaimUserID].(float64)
 	if !ok {
 		return nil, "", errs.ErrInvalidUserID
 	}

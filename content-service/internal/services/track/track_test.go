@@ -1,4 +1,4 @@
-package track
+package track_test
 
 import (
 	"context"
@@ -7,29 +7,31 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/ocenb/music-go/content-service/internal/errs"
+	"github.com/ocenb/music-go/content-service/internal/services/track"
 	"github.com/ocenb/music-go/content-service/internal/storage/transactor"
 )
 
 type TrackServiceSuite struct {
 	suite.Suite
-	mockRepo               *MockRepo
-	mockFileService        *MockFileService
-	mockSearchClient       *MockSearchClient
-	mockNotificationClient *MockNotificationClient
+	mockRepo               *track.MockRepo
+	mockFileService        *track.MockFileService
+	mockSearchClient       *track.MockSearchClient
+	mockNotificationClient *track.MockNotificationClient
 	tm                     *transactor.Manager
-	service                *Service
+	service                *track.Service
 }
 
 func (s *TrackServiceSuite) SetupTest() {
-	s.mockRepo = NewMockRepo(s.T())
-	s.mockFileService = NewMockFileService(s.T())
-	s.mockSearchClient = NewMockSearchClient(s.T())
-	s.mockNotificationClient = NewMockNotificationClient(s.T())
+	s.mockRepo = track.NewMockRepo(s.T())
+	s.mockFileService = track.NewMockFileService(s.T())
+	s.mockSearchClient = track.NewMockSearchClient(s.T())
+	s.mockNotificationClient = track.NewMockNotificationClient(s.T())
 	s.tm = transactor.NewMock()
-	s.service = New(s.mockRepo, s.mockFileService, s.mockSearchClient, s.mockNotificationClient, s.tm)
+	s.service = track.New(s.mockRepo, s.mockFileService, s.mockSearchClient, s.mockNotificationClient, s.tm)
 }
 
 func TestTrackServiceSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(TrackServiceSuite))
 }
 

@@ -1,4 +1,5 @@
 inpackage: true
+require-template-schema-exists: false
 template: testify
 packages:
   github.com/ocenb/music-go/content-service/internal/services/track:

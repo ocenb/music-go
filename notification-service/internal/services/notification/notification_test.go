@@ -20,6 +20,8 @@ func (m *mockSMTPClient) Send(ctx context.Context, to, htmlBody string) error {
 }
 
 func TestService_SendEmailNotification_Success(t *testing.T) {
+	t.Parallel()
+
 	var sentTo, sentBody string
 	smtpClient := &mockSMTPClient{
 		sendFn: func(_ context.Context, to, htmlBody string) error {
@@ -37,6 +39,8 @@ func TestService_SendEmailNotification_Success(t *testing.T) {
 }
 
 func TestService_SendEmailNotification_RetryAndFail(t *testing.T) {
+	t.Parallel()
+
 	attempts := 0
 	smtpClient := &mockSMTPClient{
 		sendFn: func(context.Context, string, string) error {
@@ -48,6 +52,6 @@ func TestService_SendEmailNotification_RetryAndFail(t *testing.T) {
 	svc := notification.New(smtpClient)
 	err := svc.SendEmailNotification(context.Background(), "user@example.com", "hello")
 	require.Error(t, err)
-	require.True(t, errors.Is(err, errs.ErrSendFailed))
+	require.ErrorIs(t, err, errs.ErrSendFailed)
 	require.Equal(t, 3, attempts)
 }

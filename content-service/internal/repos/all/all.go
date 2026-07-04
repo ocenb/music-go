@@ -29,13 +29,13 @@ func (r *Repo) DeleteAll(ctx context.Context, userID int64) ([]string, []string,
 
 		for rows.Next() {
 			var audio string
-			if err := rows.Scan(&audio); err != nil {
-				return fmt.Errorf("failed to scan track audio: %w", err)
+			if scanErr := rows.Scan(&audio); scanErr != nil {
+				return fmt.Errorf("failed to scan track audio: %w", scanErr)
 			}
 			trackAudios = append(trackAudios, audio)
 		}
-		if err := rows.Err(); err != nil {
-			return fmt.Errorf("failed to iterate track audios: %w", err)
+		if iterErr := rows.Err(); iterErr != nil {
+			return fmt.Errorf("failed to iterate track audios: %w", iterErr)
 		}
 
 		rows, err = q.Query(ctx, "SELECT image FROM tracks WHERE user_id = $1 AND image != 'default'", userID)
@@ -46,13 +46,13 @@ func (r *Repo) DeleteAll(ctx context.Context, userID int64) ([]string, []string,
 
 		for rows.Next() {
 			var image string
-			if err := rows.Scan(&image); err != nil {
-				return fmt.Errorf("failed to scan track image: %w", err)
+			if scanErr := rows.Scan(&image); scanErr != nil {
+				return fmt.Errorf("failed to scan track image: %w", scanErr)
 			}
 			trackImages = append(trackImages, image)
 		}
-		if err := rows.Err(); err != nil {
-			return fmt.Errorf("failed to iterate track images: %w", err)
+		if iterErr := rows.Err(); iterErr != nil {
+			return fmt.Errorf("failed to iterate track images: %w", iterErr)
 		}
 
 		rows, err = q.Query(ctx, "SELECT image FROM playlists WHERE user_id = $1", userID)
@@ -63,13 +63,13 @@ func (r *Repo) DeleteAll(ctx context.Context, userID int64) ([]string, []string,
 
 		for rows.Next() {
 			var image string
-			if err := rows.Scan(&image); err != nil {
-				return fmt.Errorf("failed to scan playlist image: %w", err)
+			if scanErr := rows.Scan(&image); scanErr != nil {
+				return fmt.Errorf("failed to scan playlist image: %w", scanErr)
 			}
 			playlistImages = append(playlistImages, image)
 		}
-		if err := rows.Err(); err != nil {
-			return fmt.Errorf("failed to iterate playlist images: %w", err)
+		if iterErr := rows.Err(); iterErr != nil {
+			return fmt.Errorf("failed to iterate playlist images: %w", iterErr)
 		}
 
 		if _, err := q.Exec(ctx, "DELETE FROM listening_history WHERE user_id = $1", userID); err != nil {

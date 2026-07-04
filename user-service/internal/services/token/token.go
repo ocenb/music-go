@@ -12,6 +12,15 @@ import (
 	"github.com/ocenb/music-go/user-service/internal/models"
 )
 
+const (
+	ClaimUserID  = "userId"
+	ClaimTokenID = "tokenId"
+	ClaimExp     = "exp"
+	ClaimIAT     = "iat"
+
+	tokenCleanupTimeout = 30 * time.Second
+)
+
 type Repo interface {
 	GetTokenByID(ctx context.Context, tokenID string) (*models.TokenModel, error)
 	CreateToken(ctx context.Context, tokenID string, userID int64, refreshToken string, expiresAt time.Time) error
@@ -95,7 +104,7 @@ func (s *Service) RevokeAllTokens(ctx context.Context, userID int64) error {
 }
 
 func (s *Service) CleanupExpiredTokens() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), tokenCleanupTimeout)
 	defer cancel()
 
 	if err := s.repo.DeleteExpiredTokens(ctx); err != nil {
@@ -114,16 +123,16 @@ func (s *Service) generateTokens(userID int64) (string, string, string, time.Tim
 	accessExpiresAt := time.Now().Add(s.accessTokenLiveTime)
 
 	accessPayload := jwt.MapClaims{
-		"userId":  userID,
-		"tokenId": tokenID,
-		"exp":     accessExpiresAt.Unix(),
-		"iat":     time.Now().Unix(),
+		ClaimUserID:  userID,
+		ClaimTokenID: tokenID,
+		ClaimExp:     accessExpiresAt.Unix(),
+		ClaimIAT:     time.Now().Unix(),
 	}
 	refreshPayload := jwt.MapClaims{
-		"userId":  userID,
-		"tokenId": tokenID,
-		"exp":     refreshExpiresAt.Unix(),
-		"iat":     time.Now().Unix(),
+		ClaimUserID:  userID,
+		ClaimTokenID: tokenID,
+		ClaimExp:     refreshExpiresAt.Unix(),
+		ClaimIAT:     time.Now().Unix(),
 	}
 
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessPayload)

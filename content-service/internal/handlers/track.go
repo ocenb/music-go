@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -55,29 +56,7 @@ func (h *ContentHandler) getOneByID(c *gin.Context) {
 }
 
 func (h *ContentHandler) getOne(c *gin.Context) {
-	var params models.TrackGetOneForm
-	if err := c.ShouldBindQuery(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	trackModel, err := h.trackSvc.GetOne(c.Request.Context(), user.Id, params.Username, params.ChangeableID)
-	if err != nil {
-		if errors.Is(err, errs.ErrTrackNotFound) {
-			handleError(c, errs.NotFound(err.Error()))
-			return
-		}
-		handleError(c, errs.Internal(err, ""))
-		return
-	}
-
-	c.JSON(http.StatusOK, trackModel)
+	respondGetOneByChangeableID(c, errs.ErrTrackNotFound, h.trackSvc.GetOne)
 }
 
 func (h *ContentHandler) getMany(c *gin.Context) {
@@ -181,144 +160,44 @@ func (h *ContentHandler) addPlay(c *gin.Context) {
 }
 
 func (h *ContentHandler) changeTrackTitle(c *gin.Context) {
-	var params models.TrackChangeTitleURI
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	var request models.TrackChangeTitleForm
-	if err := c.ShouldBind(&request); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	err = h.trackSvc.ChangeTitle(c.Request.Context(), user.Id, params.TrackID, request.Title)
-	if err != nil {
-		switch {
-		case errors.Is(err, errs.ErrTrackNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPermissionDenied):
-			handleError(c, errs.PermissionDenied(err.Error()))
-		case errors.Is(err, errs.ErrTrackAlreadyExists):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handleChangeTitle(
+		c,
+		func(p models.TrackChangeTitleURI) int64 { return p.TrackID },
+		func(f models.TrackChangeTitleForm) string { return f.Title },
+		errs.ErrTrackNotFound,
+		errs.ErrTrackAlreadyExists,
+		h.trackSvc.ChangeTitle,
+	)
 }
 
 func (h *ContentHandler) changeTrackChangeableID(c *gin.Context) {
-	var params models.TrackChangeChangeableIDUri
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	var request models.TrackChangeChangeableIDForm
-	if err := c.ShouldBind(&request); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	err = h.trackSvc.ChangeChangeableID(c.Request.Context(), user.Id, params.TrackID, request.ChangeableID)
-	if err != nil {
-		switch {
-		case errors.Is(err, errs.ErrTrackNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPermissionDenied):
-			handleError(c, errs.PermissionDenied(err.Error()))
-		case errors.Is(err, errs.ErrChangeableIDExists):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handleChangeChangeableID(
+		c,
+		func(p models.TrackChangeChangeableIDUri) int64 { return p.TrackID },
+		func(f models.TrackChangeChangeableIDForm) string { return f.ChangeableID },
+		errs.ErrTrackNotFound,
+		h.trackSvc.ChangeChangeableID,
+	)
 }
 
 func (h *ContentHandler) changeTrackImage(c *gin.Context) {
-	var params models.TrackChangeImageURI
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	var request models.TrackChangeImageForm
-	if err := c.ShouldBind(&request); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	err = h.trackSvc.ChangeImage(c.Request.Context(), user.Id, params.TrackID, request.ImageFile)
-	if err != nil {
-		switch {
-		case errors.Is(err, errs.ErrTrackNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPermissionDenied):
-			handleError(c, errs.PermissionDenied(err.Error()))
-		case errors.Is(err, errs.ErrInvalidImageFormat):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		case errors.Is(err, errs.ErrImageFileTooLarge):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handleChangeImage(
+		c,
+		func(p models.TrackChangeImageURI) int64 { return p.TrackID },
+		func(f models.TrackChangeImageForm) *multipart.FileHeader { return f.ImageFile },
+		errs.ErrTrackNotFound,
+		[]error{errs.ErrImageFileTooLarge},
+		h.trackSvc.ChangeImage,
+	)
 }
 
 func (h *ContentHandler) deleteTrack(c *gin.Context) {
-	var params models.TrackDeleteURI
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	if err := h.trackSvc.Delete(c.Request.Context(), user.Id, params.TrackID); err != nil {
-		switch {
-		case errors.Is(err, errs.ErrTrackNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPermissionDenied):
-			handleError(c, errs.PermissionDenied(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handleDeleteByID(
+		c,
+		func(p models.TrackDeleteURI) int64 { return p.TrackID },
+		errs.ErrTrackNotFound,
+		h.trackSvc.Delete,
+	)
 }
 
 func (h *ContentHandler) getManyLiked(c *gin.Context) {

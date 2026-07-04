@@ -47,8 +47,9 @@ func New(
 	}
 
 	recoveryOpts := []recovery.Option{
-		recovery.WithRecoveryHandler(func(p any) (err error) {
+		recovery.WithRecoveryHandler(func(p any) error {
 			log.Error("Recovered from panic", slog.Any("panic", p))
+
 			return status.Errorf(codes.Internal, "internal error")
 		}),
 	}
@@ -109,7 +110,8 @@ func authFunc(userClient UserClient) func(ctx context.Context) (context.Context,
 }
 
 func (s *Server) Start() error {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", s.port))
+	lc := net.ListenConfig{}
+	l, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf(":%d", s.port))
 	if err != nil {
 		return err
 	}
@@ -124,7 +126,7 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	s.log.Info("stopping gRPC server")
+	s.log.InfoContext(ctx, "stopping gRPC server")
 
 	stopped := make(chan struct{})
 	go func() {

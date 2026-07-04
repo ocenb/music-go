@@ -13,6 +13,8 @@ import (
 	"github.com/ocenb/music-go/user-service/internal/storage/transactor"
 )
 
+const verificationTokenTTL = 24 * time.Hour
+
 type Repo interface {
 	GetByUsername(ctx context.Context, username string) (*userservice.UserPublicModel, error)
 	GetByID(ctx context.Context, id int64) (*models.UserFullModel, error)
@@ -94,7 +96,7 @@ func (s *Service) GetByVerificationToken(ctx context.Context, verificationToken 
 }
 
 func (s *Service) UpdateVerificationToken(ctx context.Context, userID int64, newVerificationToken string) (*userservice.UserPrivateModel, error) {
-	expiresAt := time.Now().Add(24 * time.Hour)
+	expiresAt := time.Now().Add(verificationTokenTTL)
 	user, err := s.repo.UpdateVerificationToken(ctx, userID, newVerificationToken, expiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("UserService.UpdateVerificationToken: %w", err)
@@ -111,7 +113,7 @@ func (s *Service) SetVerified(ctx context.Context, userID int64) (*userservice.U
 }
 
 func (s *Service) Create(ctx context.Context, username, email, password, verificationToken string) (*userservice.UserPrivateModel, error) {
-	verificationTokenExpiresAt := time.Now().Add(24 * time.Hour)
+	verificationTokenExpiresAt := time.Now().Add(verificationTokenTTL)
 
 	user, err := s.repo.Create(ctx, username, email, password, verificationToken, verificationTokenExpiresAt)
 	if err != nil {
@@ -137,18 +139,18 @@ func (s *Service) ChangeUsername(ctx context.Context, userID int64, username str
 
 	var updatedUser *userservice.UserPublicModel
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
-		var err error
-		updatedUser, err = s.repo.ChangeUsername(txCtx, userID, username)
-		if err != nil {
-			return fmt.Errorf("failed to change username: %w", err)
+		var changeErr error
+		updatedUser, changeErr = s.repo.ChangeUsername(txCtx, userID, username)
+		if changeErr != nil {
+			return fmt.Errorf("failed to change username: %w", changeErr)
 		}
 
-		updateResp, err := s.searchClient.UpdateUser(txCtx, &searchservice.AddOrUpdateRequest{
+		updateResp, updateErr := s.searchClient.UpdateUser(txCtx, &searchservice.AddOrUpdateRequest{
 			Id:   userID,
 			Name: username,
 		})
-		if err != nil || !updateResp.Success {
-			return fmt.Errorf("failed to update user in search service: %w", err)
+		if updateErr != nil || !updateResp.Success {
+			return fmt.Errorf("failed to update user in search service: %w", updateErr)
 		}
 
 		return nil

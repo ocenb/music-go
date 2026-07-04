@@ -57,19 +57,19 @@ func run() int {
 		)
 		migrateCtx, migrateCancel := context.WithTimeout(ctx, cfg.DBConnectTimeout)
 		defer migrateCancel()
-		migrate, err := migrator.New(migrateCtx, cfg.Postgres.DSN, migrations.FS, logger.NewSlogAdapter(log))
-		if err != nil {
-			return err
+		migrate, migrateErr := migrator.New(migrateCtx, cfg.Postgres.DSN, migrations.FS, logger.NewSlogAdapter(log))
+		if migrateErr != nil {
+			return migrateErr
 		}
 		defer func() {
-			if err := migrate.Close(); err != nil {
-				log.Error("failed to close migrate connection", logattr.Err(err))
+			if closeErr := migrate.Close(); closeErr != nil {
+				log.Error("failed to close migrate connection", logattr.Err(closeErr))
 			}
 		}()
 
 		log.Info("running migrations")
-		if err := migrate.Up(); err != nil {
-			return err
+		if migrateErr = migrate.Up(); migrateErr != nil {
+			return migrateErr
 		}
 		log.Info("migrations completed successfully")
 		return nil
@@ -102,8 +102,8 @@ func run() int {
 	}
 	defer func() {
 		log.Info("closing search service connection")
-		if err := searchClient.Close(); err != nil {
-			log.Error("failed to close search service connection", logattr.Err(err))
+		if closeErr := searchClient.Close(); closeErr != nil {
+			log.Error("failed to close search service connection", logattr.Err(closeErr))
 		}
 	}()
 
@@ -114,8 +114,8 @@ func run() int {
 	}
 	defer func() {
 		log.Info("closing notification client")
-		if err := notificationClient.Close(); err != nil {
-			log.Error("failed to close notification client", logattr.Err(err))
+		if closeErr := notificationClient.Close(); closeErr != nil {
+			log.Error("failed to close notification client", logattr.Err(closeErr))
 		}
 	}()
 
@@ -165,17 +165,17 @@ func run() int {
 }
 
 func runTokenCleanup(ctx context.Context, cleaner tokenCleaner, log *slog.Logger, interval time.Duration) {
-	log.Info("token cleanup scheduled", slog.Duration("interval", interval))
+	log.InfoContext(ctx, "token cleanup scheduled", slog.Duration("interval", interval))
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	cleanup := func() {
 		if err := cleaner.CleanupExpiredTokens(); err != nil {
-			log.Error("failed to cleanup expired tokens", logattr.Err(err))
+			log.ErrorContext(ctx, "failed to cleanup expired tokens", logattr.Err(err))
 			return
 		}
-		log.Info("successfully cleaned up expired tokens")
+		log.InfoContext(ctx, "successfully cleaned up expired tokens")
 	}
 
 	cleanup()
@@ -183,7 +183,7 @@ func runTokenCleanup(ctx context.Context, cleaner tokenCleaner, log *slog.Logger
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info("stopping token cleanup")
+			log.InfoContext(ctx, "stopping token cleanup")
 			return
 		case <-ticker.C:
 			cleanup()

@@ -1,4 +1,4 @@
-package token
+package token_test
 
 import (
 	"context"
@@ -10,96 +10,98 @@ import (
 
 	"github.com/ocenb/music-go/user-service/internal/errs"
 	"github.com/ocenb/music-go/user-service/internal/models"
+	tokenservice "github.com/ocenb/music-go/user-service/internal/services/token"
 )
 
 type TokenServiceSuite struct {
 	suite.Suite
-	service   *Service
+	service   *tokenservice.Service
 	jwtSecret string
 }
 
 func (s *TokenServiceSuite) SetupTest() {
 	s.jwtSecret = "test-secret"
-	s.service = New(mockTokenRepo{}, s.jwtSecret, time.Hour, time.Hour*24*30)
+	s.service = tokenservice.New(mockTokenRepo{}, s.jwtSecret, time.Hour, time.Hour*24*30)
 }
 
 func TestTokenServiceSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(TokenServiceSuite))
 }
 
 func (s *TokenServiceSuite) TestValidateToken_Valid() {
 	claims := jwt.MapClaims{
-		"userId":  int64(123),
-		"tokenId": "test-token-id",
-		"exp":     time.Now().Add(time.Hour).Unix(),
-		"iat":     time.Now().Unix(),
+		tokenservice.ClaimUserID:  int64(123),
+		tokenservice.ClaimTokenID: "test-token-id",
+		tokenservice.ClaimExp:     time.Now().Add(time.Hour).Unix(),
+		tokenservice.ClaimIAT:     time.Now().Unix(),
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	signedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := signedToken.SignedString([]byte(s.jwtSecret))
 	s.Require().NoError(err)
 
 	resultClaims, err := s.service.ValidateToken(tokenString)
 	s.Require().NoError(err)
 	s.NotNil(resultClaims)
-	s.Equal(float64(123), resultClaims["userId"])
-	s.Equal("test-token-id", resultClaims["tokenId"])
+	s.InDelta(float64(123), resultClaims[tokenservice.ClaimUserID], 0)
+	s.Equal("test-token-id", resultClaims[tokenservice.ClaimTokenID])
 }
 
 func (s *TokenServiceSuite) TestValidateToken_InvalidSignature() {
 	claims := jwt.MapClaims{
-		"userId":  int64(123),
-		"tokenId": "test-token-id",
-		"exp":     time.Now().Add(time.Hour).Unix(),
-		"iat":     time.Now().Unix(),
+		tokenservice.ClaimUserID:  int64(123),
+		tokenservice.ClaimTokenID: "test-token-id",
+		tokenservice.ClaimExp:     time.Now().Add(time.Hour).Unix(),
+		tokenservice.ClaimIAT:     time.Now().Unix(),
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte("wrong-secret"))
+	signedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := signedToken.SignedString([]byte("wrong-secret"))
 	s.Require().NoError(err)
 
 	resultClaims, err := s.service.ValidateToken(tokenString)
 	s.Require().Error(err)
 	s.Nil(resultClaims)
-	s.ErrorIs(err, errs.ErrInvalidToken)
+	s.Require().ErrorIs(err, errs.ErrInvalidToken)
 }
 
 func (s *TokenServiceSuite) TestValidateToken_ExpiredToken() {
 	claims := jwt.MapClaims{
-		"userId":  int64(123),
-		"tokenId": "test-token-id",
-		"exp":     time.Now().Add(-time.Hour).Unix(),
-		"iat":     time.Now().Add(-time.Hour * 2).Unix(),
+		tokenservice.ClaimUserID:  int64(123),
+		tokenservice.ClaimTokenID: "test-token-id",
+		tokenservice.ClaimExp:     time.Now().Add(-time.Hour).Unix(),
+		tokenservice.ClaimIAT:     time.Now().Add(-time.Hour * 2).Unix(),
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	signedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := signedToken.SignedString([]byte(s.jwtSecret))
 	s.Require().NoError(err)
 
 	resultClaims, err := s.service.ValidateToken(tokenString)
 	s.Require().Error(err)
 	s.Nil(resultClaims)
-	s.ErrorIs(err, errs.ErrInvalidToken)
+	s.Require().ErrorIs(err, errs.ErrInvalidToken)
 }
 
 func (s *TokenServiceSuite) TestValidateToken_InvalidMethod() {
 	claims := jwt.MapClaims{
-		"userId":  int64(123),
-		"tokenId": "test-token-id",
-		"exp":     time.Now().Add(time.Hour).Unix(),
-		"iat":     time.Now().Unix(),
+		tokenservice.ClaimUserID:  int64(123),
+		tokenservice.ClaimTokenID: "test-token-id",
+		tokenservice.ClaimExp:     time.Now().Add(time.Hour).Unix(),
+		tokenservice.ClaimIAT:     time.Now().Unix(),
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodNone, claims)
-	tokenString, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
+	signedToken := jwt.NewWithClaims(jwt.SigningMethodNone, claims)
+	tokenString, err := signedToken.SignedString(jwt.UnsafeAllowNoneSignatureType)
 	s.Require().NoError(err)
 
 	resultClaims, err := s.service.ValidateToken(tokenString)
 	s.Require().Error(err)
 	s.Nil(resultClaims)
-	s.ErrorIs(err, errs.ErrInvalidToken)
+	s.Require().ErrorIs(err, errs.ErrInvalidToken)
 }
 
 func (s *TokenServiceSuite) TestGenerateTokens() {
 	userID := int64(123)
 
-	accessToken, refreshToken, tokenID, expiresAt, err := s.service.generateTokens(userID)
+	accessToken, refreshToken, tokenID, expiresAt, err := tokenservice.GenerateTokens(s.service, userID)
 	s.Require().NoError(err)
 	s.NotEmpty(accessToken)
 	s.NotEmpty(refreshToken)
@@ -108,19 +110,19 @@ func (s *TokenServiceSuite) TestGenerateTokens() {
 
 	accessClaims, err := s.service.ValidateToken(accessToken)
 	s.Require().NoError(err)
-	s.Equal(float64(userID), accessClaims["userId"])
-	s.Equal(tokenID, accessClaims["tokenId"])
+	s.InDelta(float64(userID), accessClaims[tokenservice.ClaimUserID], 0)
+	s.Equal(tokenID, accessClaims[tokenservice.ClaimTokenID])
 
 	refreshClaims, err := s.service.ValidateToken(refreshToken)
 	s.Require().NoError(err)
-	s.Equal(float64(userID), refreshClaims["userId"])
-	s.Equal(tokenID, refreshClaims["tokenId"])
+	s.InDelta(float64(userID), refreshClaims[tokenservice.ClaimUserID], 0)
+	s.Equal(tokenID, refreshClaims[tokenservice.ClaimTokenID])
 }
 
 type mockTokenRepo struct{}
 
 func (mockTokenRepo) GetTokenByID(context.Context, string) (*models.TokenModel, error) {
-	return nil, nil
+	return nil, errs.ErrTokenNotFound
 }
 
 func (mockTokenRepo) CreateToken(context.Context, string, int64, string, time.Time) error {

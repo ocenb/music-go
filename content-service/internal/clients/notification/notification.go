@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/segmentio/kafka-go"
@@ -19,10 +20,10 @@ type EmailNotification struct {
 
 func New(brokers []string, topic string) (*Client, error) {
 	if len(brokers) == 0 {
-		return nil, fmt.Errorf("kafka brokers list is empty")
+		return nil, errors.New("kafka brokers list is empty")
 	}
 	if topic == "" {
-		return nil, fmt.Errorf("kafka topic is empty")
+		return nil, errors.New("kafka topic is empty")
 	}
 
 	writer := &kafka.Writer{

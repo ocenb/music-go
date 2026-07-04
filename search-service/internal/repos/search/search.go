@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/elastic/go-elasticsearch/v8/typedapi/core/search"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/types"
@@ -66,7 +67,7 @@ func (r *Repo) search(ctx context.Context, index, query string, fields []string)
 }
 
 func (r *Repo) AddUser(ctx context.Context, id int64, username string) error {
-	exists, err := r.es.Typed().Exists(elastic.UsersIndexName, fmt.Sprintf("%d", id)).Do(ctx)
+	exists, err := r.es.Typed().Exists(elastic.UsersIndexName, strconv.FormatInt(id, 10)).Do(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check if user exists: %w", err)
 	}
@@ -80,7 +81,7 @@ func (r *Repo) AddUser(ctx context.Context, id int64, username string) error {
 	}{ID: id, Username: username}
 
 	_, err = r.es.Typed().Index(elastic.UsersIndexName).
-		Id(fmt.Sprintf("%d", id)).
+		Id(strconv.FormatInt(id, 10)).
 		Document(user).
 		Refresh(refresh.Waitfor).
 		Do(ctx)
@@ -92,7 +93,7 @@ func (r *Repo) AddUser(ctx context.Context, id int64, username string) error {
 }
 
 func (r *Repo) AddAlbum(ctx context.Context, id int64, title string) error {
-	exists, err := r.es.Typed().Exists(elastic.AlbumsIndexName, fmt.Sprintf("%d", id)).Do(ctx)
+	exists, err := r.es.Typed().Exists(elastic.AlbumsIndexName, strconv.FormatInt(id, 10)).Do(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check if album exists: %w", err)
 	}
@@ -106,7 +107,7 @@ func (r *Repo) AddAlbum(ctx context.Context, id int64, title string) error {
 	}{ID: id, Title: title}
 
 	_, err = r.es.Typed().Index(elastic.AlbumsIndexName).
-		Id(fmt.Sprintf("%d", id)).
+		Id(strconv.FormatInt(id, 10)).
 		Document(album).
 		Refresh(refresh.Waitfor).
 		Do(ctx)
@@ -118,7 +119,7 @@ func (r *Repo) AddAlbum(ctx context.Context, id int64, title string) error {
 }
 
 func (r *Repo) AddTrack(ctx context.Context, id int64, title string) error {
-	exists, err := r.es.Typed().Exists(elastic.TracksIndexName, fmt.Sprintf("%d", id)).Do(ctx)
+	exists, err := r.es.Typed().Exists(elastic.TracksIndexName, strconv.FormatInt(id, 10)).Do(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check if track exists: %w", err)
 	}
@@ -132,7 +133,7 @@ func (r *Repo) AddTrack(ctx context.Context, id int64, title string) error {
 	}{ID: id, Title: title}
 
 	_, err = r.es.Typed().Index(elastic.TracksIndexName).
-		Id(fmt.Sprintf("%d", id)).
+		Id(strconv.FormatInt(id, 10)).
 		Document(track).
 		Refresh(refresh.Waitfor).
 		Do(ctx)
@@ -144,7 +145,7 @@ func (r *Repo) AddTrack(ctx context.Context, id int64, title string) error {
 }
 
 func (r *Repo) UpdateUser(ctx context.Context, id int64, username string) error {
-	exists, err := r.es.Typed().Exists(elastic.UsersIndexName, fmt.Sprintf("%d", id)).Do(ctx)
+	exists, err := r.es.Typed().Exists(elastic.UsersIndexName, strconv.FormatInt(id, 10)).Do(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check if user exists: %w", err)
 	}
@@ -156,7 +157,7 @@ func (r *Repo) UpdateUser(ctx context.Context, id int64, username string) error 
 		Username string `json:"username"`
 	}{Username: username}
 
-	_, err = r.es.Typed().Update(elastic.UsersIndexName, fmt.Sprintf("%d", id)).
+	_, err = r.es.Typed().Update(elastic.UsersIndexName, strconv.FormatInt(id, 10)).
 		Doc(user).
 		Refresh(refresh.Waitfor).
 		Do(ctx)
@@ -168,7 +169,7 @@ func (r *Repo) UpdateUser(ctx context.Context, id int64, username string) error 
 }
 
 func (r *Repo) UpdateAlbum(ctx context.Context, id int64, title string) error {
-	exists, err := r.es.Typed().Exists(elastic.AlbumsIndexName, fmt.Sprintf("%d", id)).Do(ctx)
+	exists, err := r.es.Typed().Exists(elastic.AlbumsIndexName, strconv.FormatInt(id, 10)).Do(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check if album exists: %w", err)
 	}
@@ -180,7 +181,7 @@ func (r *Repo) UpdateAlbum(ctx context.Context, id int64, title string) error {
 		Title string `json:"title"`
 	}{Title: title}
 
-	_, err = r.es.Typed().Update(elastic.AlbumsIndexName, fmt.Sprintf("%d", id)).
+	_, err = r.es.Typed().Update(elastic.AlbumsIndexName, strconv.FormatInt(id, 10)).
 		Doc(album).
 		Refresh(refresh.Waitfor).
 		Do(ctx)
@@ -192,7 +193,7 @@ func (r *Repo) UpdateAlbum(ctx context.Context, id int64, title string) error {
 }
 
 func (r *Repo) UpdateTrack(ctx context.Context, id int64, title string) error {
-	exists, err := r.es.Typed().Exists(elastic.TracksIndexName, fmt.Sprintf("%d", id)).Do(ctx)
+	exists, err := r.es.Typed().Exists(elastic.TracksIndexName, strconv.FormatInt(id, 10)).Do(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check if track exists: %w", err)
 	}
@@ -204,7 +205,7 @@ func (r *Repo) UpdateTrack(ctx context.Context, id int64, title string) error {
 		Title string `json:"title"`
 	}{Title: title}
 
-	_, err = r.es.Typed().Update(elastic.TracksIndexName, fmt.Sprintf("%d", id)).
+	_, err = r.es.Typed().Update(elastic.TracksIndexName, strconv.FormatInt(id, 10)).
 		Doc(track).
 		Refresh(refresh.Waitfor).
 		Do(ctx)
@@ -228,7 +229,7 @@ func (r *Repo) DeleteTrack(ctx context.Context, id int64) error {
 }
 
 func (r *Repo) delete(ctx context.Context, index string, id int64, notFound *errs.Error) error {
-	exists, err := r.es.Typed().Exists(index, fmt.Sprintf("%d", id)).Do(ctx)
+	exists, err := r.es.Typed().Exists(index, strconv.FormatInt(id, 10)).Do(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to check if document exists in %s: %w", index, err)
 	}
@@ -236,7 +237,7 @@ func (r *Repo) delete(ctx context.Context, index string, id int64, notFound *err
 		return notFound
 	}
 
-	_, err = r.es.Typed().Delete(index, fmt.Sprintf("%d", id)).
+	_, err = r.es.Typed().Delete(index, strconv.FormatInt(id, 10)).
 		Refresh(refresh.Waitfor).
 		Do(ctx)
 	if err != nil {

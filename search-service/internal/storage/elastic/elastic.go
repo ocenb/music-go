@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/typedapi/indices/create"
@@ -23,7 +24,7 @@ type Client struct {
 }
 
 func New(ctx context.Context, cfg config.ElasticConfig, log *slog.Logger) (*Client, error) {
-	address := fmt.Sprintf("http://%s:%s", cfg.Host, cfg.Port)
+	address := fmt.Sprintf("http://%s", net.JoinHostPort(cfg.Host, cfg.Port))
 
 	es, err := elasticsearch.NewTypedClient(elasticsearch.Config{
 		Addresses: []string{address},
@@ -45,7 +46,7 @@ func New(ctx context.Context, cfg config.ElasticConfig, log *slog.Logger) (*Clie
 		return nil, fmt.Errorf("failed to create indices: %w", err)
 	}
 
-	log.Info("connected to elasticsearch", slog.String("address", address))
+	log.InfoContext(ctx, "connected to elasticsearch", slog.String("address", address))
 
 	return client, nil
 }

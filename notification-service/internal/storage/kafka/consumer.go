@@ -19,7 +19,7 @@ type Consumer struct {
 
 func New(cfg config.KafkaConfig) (*Consumer, error) {
 	if len(cfg.Brokers) == 0 {
-		return nil, fmt.Errorf("kafka brokers list is empty")
+		return nil, errors.New("kafka brokers list is empty")
 	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{

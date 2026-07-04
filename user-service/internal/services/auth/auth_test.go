@@ -1,4 +1,4 @@
-package auth
+package auth_test
 
 import (
 	"context"
@@ -10,27 +10,30 @@ import (
 
 	"github.com/ocenb/music-go/user-service/internal/errs"
 	"github.com/ocenb/music-go/user-service/internal/models"
+	"github.com/ocenb/music-go/user-service/internal/services/auth"
+	"github.com/ocenb/music-go/user-service/internal/services/token"
 	"github.com/ocenb/music-go/user-service/internal/storage/transactor"
 )
 
 type AuthServiceSuite struct {
 	suite.Suite
-	mockUserService        *MockUserService
-	mockTokenService       *MockTokenService
-	mockNotificationClient *MockNotificationClient
+	mockUserService        *auth.MockUserService
+	mockTokenService       *auth.MockTokenService
+	mockNotificationClient *auth.MockNotificationClient
 	tm                     *transactor.Manager
-	service                *Service
+	service                *auth.Service
 }
 
 func (s *AuthServiceSuite) SetupTest() {
-	s.mockUserService = NewMockUserService(s.T())
-	s.mockTokenService = NewMockTokenService(s.T())
-	s.mockNotificationClient = NewMockNotificationClient(s.T())
+	s.mockUserService = auth.NewMockUserService(s.T())
+	s.mockTokenService = auth.NewMockTokenService(s.T())
+	s.mockNotificationClient = auth.NewMockNotificationClient(s.T())
 	s.tm = transactor.NewMock()
-	s.service = New(s.mockUserService, s.mockTokenService, s.mockNotificationClient, s.tm, 12)
+	s.service = auth.New(s.mockUserService, s.mockTokenService, s.mockNotificationClient, s.tm, 12)
 }
 
 func TestAuthServiceSuite(t *testing.T) {
+	t.Parallel()
 	suite.Run(t, new(AuthServiceSuite))
 }
 
@@ -39,9 +42,9 @@ func (s *AuthServiceSuite) TestValidateAccessToken_Valid() {
 	tokenID := "test-token-id"
 	userID := int64(123)
 	claims := jwt.MapClaims{
-		"userId":  float64(userID),
-		"tokenId": tokenID,
-		"exp":     time.Now().Add(time.Hour).Unix(),
+		token.ClaimUserID:  float64(userID),
+		token.ClaimTokenID: tokenID,
+		token.ClaimExp:     time.Now().Add(time.Hour).Unix(),
 	}
 
 	s.mockTokenService.On("ValidateToken", "valid-token").Return(claims, nil)
@@ -75,15 +78,15 @@ func (s *AuthServiceSuite) TestValidateAccessToken_InvalidToken() {
 func (s *AuthServiceSuite) TestValidateAccessToken_InvalidUserID() {
 	ctx := context.Background()
 	claims := jwt.MapClaims{
-		"tokenId": "test-token-id",
-		"exp":     time.Now().Add(time.Hour).Unix(),
+		token.ClaimTokenID: "test-token-id",
+		token.ClaimExp:     time.Now().Add(time.Hour).Unix(),
 	}
 
 	s.mockTokenService.On("ValidateToken", "token-without-userid").Return(claims, nil)
 
 	user, tokenID, err := s.service.ValidateAccessToken(ctx, "token-without-userid")
 	s.Require().Error(err)
-	s.ErrorIs(err, errs.ErrInvalidToken)
+	s.Require().ErrorIs(err, errs.ErrInvalidToken)
 	s.Nil(user)
 	s.Empty(tokenID)
 }
@@ -91,15 +94,15 @@ func (s *AuthServiceSuite) TestValidateAccessToken_InvalidUserID() {
 func (s *AuthServiceSuite) TestValidateAccessToken_InvalidTokenID() {
 	ctx := context.Background()
 	claims := jwt.MapClaims{
-		"userId": float64(123),
-		"exp":    time.Now().Add(time.Hour).Unix(),
+		token.ClaimUserID: float64(123),
+		token.ClaimExp:    time.Now().Add(time.Hour).Unix(),
 	}
 
 	s.mockTokenService.On("ValidateToken", "token-without-tokenid").Return(claims, nil)
 
 	user, tokenID, err := s.service.ValidateAccessToken(ctx, "token-without-tokenid")
 	s.Require().Error(err)
-	s.ErrorIs(err, errs.ErrInvalidToken)
+	s.Require().ErrorIs(err, errs.ErrInvalidToken)
 	s.Nil(user)
 	s.Empty(tokenID)
 }
@@ -109,9 +112,9 @@ func (s *AuthServiceSuite) TestValidateAccessToken_UserNotFound() {
 	tokenID := "test-token-id"
 	userID := int64(123)
 	claims := jwt.MapClaims{
-		"userId":  float64(userID),
-		"tokenId": tokenID,
-		"exp":     time.Now().Add(time.Hour).Unix(),
+		token.ClaimUserID:  float64(userID),
+		token.ClaimTokenID: tokenID,
+		token.ClaimExp:     time.Now().Add(time.Hour).Unix(),
 	}
 
 	s.mockTokenService.On("ValidateToken", "valid-token-nonexistent-user").Return(claims, nil)
@@ -120,7 +123,7 @@ func (s *AuthServiceSuite) TestValidateAccessToken_UserNotFound() {
 
 	user, resultTokenID, err := s.service.ValidateAccessToken(ctx, "valid-token-nonexistent-user")
 	s.Require().Error(err)
-	s.ErrorIs(err, errs.ErrUserNotFound)
+	s.Require().ErrorIs(err, errs.ErrUserNotFound)
 	s.Nil(user)
 	s.Empty(resultTokenID)
 }
@@ -131,9 +134,9 @@ func (s *AuthServiceSuite) TestValidateRefreshToken_Valid() {
 	userID := int64(123)
 	refreshToken := "valid-refresh-token"
 	claims := jwt.MapClaims{
-		"userId":  float64(userID),
-		"tokenId": tokenID,
-		"exp":     time.Now().Add(time.Hour).Unix(),
+		token.ClaimUserID:  float64(userID),
+		token.ClaimTokenID: tokenID,
+		token.ClaimExp:     time.Now().Add(time.Hour).Unix(),
 	}
 
 	s.mockTokenService.On("ValidateToken", refreshToken).Return(claims, nil)
@@ -151,7 +154,7 @@ func (s *AuthServiceSuite) TestValidateRefreshToken_Valid() {
 	}
 	s.mockUserService.On("GetByID", ctx, userID).Return(expectedUser, nil)
 
-	user, resultTokenID, err := s.service.validateRefreshToken(ctx, refreshToken)
+	user, resultTokenID, err := auth.ValidateRefreshToken(s.service, ctx, refreshToken)
 	s.Require().NoError(err)
 	s.Equal(expectedUser, user)
 	s.Equal(tokenID, resultTokenID)
@@ -162,9 +165,9 @@ func (s *AuthServiceSuite) TestValidateRefreshToken_InvalidToken() {
 
 	s.mockTokenService.On("ValidateToken", "invalid-token").Return(nil, errs.ErrInvalidToken)
 
-	user, tokenID, err := s.service.validateRefreshToken(ctx, "invalid-token")
+	user, tokenID, err := auth.ValidateRefreshToken(s.service, ctx, "invalid-token")
 	s.Require().Error(err)
-	s.ErrorIs(err, errs.ErrInvalidRefreshToken)
+	s.Require().ErrorIs(err, errs.ErrInvalidRefreshToken)
 	s.Nil(user)
 	s.Empty(tokenID)
 }
@@ -175,9 +178,9 @@ func (s *AuthServiceSuite) TestValidateRefreshToken_RefreshTokenMismatch() {
 	userID := int64(123)
 	refreshToken := "refresh-token"
 	claims := jwt.MapClaims{
-		"userId":  float64(userID),
-		"tokenId": tokenID,
-		"exp":     time.Now().Add(time.Hour).Unix(),
+		token.ClaimUserID:  float64(userID),
+		token.ClaimTokenID: tokenID,
+		token.ClaimExp:     time.Now().Add(time.Hour).Unix(),
 	}
 
 	s.mockTokenService.On("ValidateToken", refreshToken).Return(claims, nil)
@@ -187,9 +190,9 @@ func (s *AuthServiceSuite) TestValidateRefreshToken_RefreshTokenMismatch() {
 		UserID:       userID,
 	}, nil)
 
-	user, resultTokenID, err := s.service.validateRefreshToken(ctx, refreshToken)
+	user, resultTokenID, err := auth.ValidateRefreshToken(s.service, ctx, refreshToken)
 	s.Require().Error(err)
-	s.ErrorIs(err, errs.ErrInvalidRefreshToken)
+	s.Require().ErrorIs(err, errs.ErrInvalidRefreshToken)
 	s.Nil(user)
 	s.Empty(resultTokenID)
 }

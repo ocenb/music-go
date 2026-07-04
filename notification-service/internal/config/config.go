@@ -10,6 +10,8 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
+const envLocal = "local"
+
 type Config struct {
 	Environment     string        `env:"ENVIRONMENT" env-default:"local" validate:"oneof=local dev test prod"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT" env-default:"10s" validate:"min=1s"`
@@ -39,13 +41,13 @@ type SMTPConfig struct {
 func Load() (*Config, error) {
 	env := os.Getenv("ENVIRONMENT")
 	if env == "" {
-		env = "local"
+		env = envLocal
 	}
 
 	switch env {
-	case "local", "dev", "test", "prod":
+	case envLocal, "dev", "test", "prod":
 	default:
-		env = "local"
+		env = envLocal
 	}
 
 	configPath := filepath.Join("config", env+".yaml")

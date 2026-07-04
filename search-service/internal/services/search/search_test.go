@@ -2,7 +2,6 @@ package search_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -42,6 +41,8 @@ func (m *mockRepo) DeleteAlbum(context.Context, int64) error         { return ni
 func (m *mockRepo) DeleteTrack(context.Context, int64) error         { return nil }
 
 func TestService_SearchUsers_Success(t *testing.T) {
+	t.Parallel()
+
 	repo := &mockRepo{
 		searchUsersFn: func(_ context.Context, query string) ([]int64, error) {
 			require.Equal(t, "alice", query)
@@ -56,6 +57,8 @@ func TestService_SearchUsers_Success(t *testing.T) {
 }
 
 func TestService_AddUser_AlreadyExists(t *testing.T) {
+	t.Parallel()
+
 	repo := &mockRepo{
 		addUserFn: func(context.Context, int64, string) error {
 			return errs.ErrUserAlreadyExists
@@ -65,5 +68,5 @@ func TestService_AddUser_AlreadyExists(t *testing.T) {
 
 	err := svc.AddUser(context.Background(), 1, "alice")
 	require.Error(t, err)
-	require.True(t, errors.Is(err, errs.ErrUserAlreadyExists))
+	require.ErrorIs(t, err, errs.ErrUserAlreadyExists)
 }

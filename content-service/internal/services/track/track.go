@@ -125,22 +125,22 @@ func (s *Service) Upload(ctx context.Context, userID int64, username, email, tit
 
 	var newTrack *models.TrackModel
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
-		var err error
-		newTrack, err = s.repo.Create(txCtx, userID, username, title, changeableID, audioResult.FileName, imageName, int64(audioResult.Duration))
-		if err != nil {
-			return err
+		var createErr error
+		newTrack, createErr = s.repo.Create(txCtx, userID, username, title, changeableID, audioResult.FileName, imageName, int64(audioResult.Duration))
+		if createErr != nil {
+			return createErr
 		}
 
-		_, err = s.searchClient.AddTrack(txCtx, &searchservice.AddOrUpdateRequest{
+		_, createErr = s.searchClient.AddTrack(txCtx, &searchservice.AddOrUpdateRequest{
 			Id:   newTrack.ID,
 			Name: newTrack.Title,
 		})
-		if err != nil {
-			return err
+		if createErr != nil {
+			return createErr
 		}
 
-		if err := s.notificationClient.SendEmailNotification(txCtx, email, newTrack.Title); err != nil {
-			return fmt.Errorf("failed to send email notification: %w", err)
+		if notifyErr := s.notificationClient.SendEmailNotification(txCtx, email, newTrack.Title); notifyErr != nil {
+			return fmt.Errorf("failed to send email notification: %w", notifyErr)
 		}
 
 		return nil
@@ -174,25 +174,22 @@ func (s *Service) Delete(ctx context.Context, userID, trackID int64) error {
 	}
 
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Delete(txCtx, trackID); err != nil {
-			return err
+		if delErr := s.repo.Delete(txCtx, trackID); delErr != nil {
+			return delErr
 		}
 
-		deleteResp, err := s.searchClient.DeleteTrack(txCtx, &searchservice.DeleteRequest{
+		deleteResp, deleteErr := s.searchClient.DeleteTrack(txCtx, &searchservice.DeleteRequest{
 			Id: trackID,
 		})
-		if err != nil || !deleteResp.Success {
-			return fmt.Errorf("failed to delete track in search service: %w", err)
+		if deleteErr != nil || !deleteResp.Success {
+			return fmt.Errorf("failed to delete track in search service: %w", deleteErr)
 		}
 
-		if err := s.fileService.DeleteFile(txCtx, track.Audio, fileservice.AudioCategory); err != nil {
-			return err
+		if audioErr := s.fileService.DeleteFile(txCtx, track.Audio, fileservice.AudioCategory); audioErr != nil {
+			return audioErr
 		}
 
-		if err := s.fileService.DeleteFile(txCtx, track.Image, fileservice.ImagesCategory); err != nil {
-			return err
-		}
-		return nil
+		return s.fileService.DeleteFile(txCtx, track.Image, fileservice.ImagesCategory)
 	})
 	if err != nil {
 		return fmt.Errorf("TrackService.Delete: %w", err)
@@ -209,12 +206,12 @@ func (s *Service) ChangeTitle(ctx context.Context, userID, trackID int64, title 
 		return errs.ErrPermissionDenied
 	}
 
-	if err := s.validateTrackTitle(ctx, userID, title); err != nil {
-		return err
+	if titleErr := s.validateTrackTitle(ctx, userID, title); titleErr != nil {
+		return titleErr
 	}
 
-	if err := s.repo.ChangeTitle(ctx, trackID, title); err != nil {
-		return fmt.Errorf("TrackService.ChangeTitle: %w", err)
+	if changeErr := s.repo.ChangeTitle(ctx, trackID, title); changeErr != nil {
+		return fmt.Errorf("TrackService.ChangeTitle: %w", changeErr)
 	}
 
 	updateResp, err := s.searchClient.UpdateTrack(ctx, &searchservice.AddOrUpdateRequest{

@@ -73,8 +73,8 @@ func (s *Service) Add(ctx context.Context, userID, playlistID, trackID int64, po
 		return nil, errs.ErrPermissionDenied
 	}
 
-	if _, err := s.trackRepo.GetByID(ctx, trackID, userID); err != nil {
-		return nil, fmt.Errorf("PlaylistTracksService.Add: %w", err)
+	if _, getErr := s.trackRepo.GetByID(ctx, trackID, userID); getErr != nil {
+		return nil, fmt.Errorf("PlaylistTracksService.Add: %w", getErr)
 	}
 
 	trackInPlaylist, err := s.repo.GetOne(ctx, playlistID, trackID)
@@ -98,14 +98,14 @@ func (s *Service) Add(ctx context.Context, userID, playlistID, trackID int64, po
 	var playlistTrack *models.PlaylistTrackModel
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
 		if position > 0 && position <= lastPosition {
-			if err := s.repo.IncrementPositions(txCtx, playlistID, position); err != nil {
-				return err
+			if incErr := s.repo.IncrementPositions(txCtx, playlistID, position); incErr != nil {
+				return incErr
 			}
 		}
 
-		var err error
-		playlistTrack, err = s.repo.Add(txCtx, playlistID, trackID, newPosition)
-		return err
+		var addErr error
+		playlistTrack, addErr = s.repo.Add(txCtx, playlistID, trackID, newPosition)
+		return addErr
 	})
 	if err != nil {
 		return nil, fmt.Errorf("PlaylistTracksService.Add: %w", err)
@@ -133,8 +133,8 @@ func (s *Service) UpdatePosition(ctx context.Context, userID, playlistID, trackI
 	}
 
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
-		if err := s.repo.MovePositions(txCtx, playlistID, trackInPlaylist.Position, position); err != nil {
-			return err
+		if moveErr := s.repo.MovePositions(txCtx, playlistID, trackInPlaylist.Position, position); moveErr != nil {
+			return moveErr
 		}
 
 		return s.repo.UpdatePosition(txCtx, playlistID, trackID, position)

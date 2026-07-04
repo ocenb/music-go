@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,29 +27,7 @@ func (h *ContentHandler) registerPlaylistRoutes(router *gin.RouterGroup) {
 }
 
 func (h *ContentHandler) getPlaylistOne(c *gin.Context) {
-	var params models.PlaylistGetOneForm
-	if err := c.ShouldBindQuery(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	playlistModel, err := h.playlistSvc.GetOne(c.Request.Context(), user.Id, params.Username, params.ChangeableID)
-	if err != nil {
-		if errors.Is(err, errs.ErrPlaylistNotFound) {
-			handleError(c, errs.NotFound(err.Error()))
-			return
-		}
-		handleError(c, errs.Internal(err, ""))
-		return
-	}
-
-	c.JSON(http.StatusOK, playlistModel)
+	respondGetOneByChangeableID(c, errs.ErrPlaylistNotFound, h.playlistSvc.GetOne)
 }
 
 func (h *ContentHandler) getManyPlaylists(c *gin.Context) {
@@ -131,196 +110,60 @@ func (h *ContentHandler) createPlaylist(c *gin.Context) {
 }
 
 func (h *ContentHandler) changePlaylistTitle(c *gin.Context) {
-	var params models.PlaylistChangeTitleURI
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	var request models.PlaylistChangeTitleForm
-	if err := c.ShouldBind(&request); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	err = h.playlistSvc.ChangeTitle(c.Request.Context(), user.Id, params.PlaylistID, request.Title)
-	if err != nil {
-		switch {
-		case errors.Is(err, errs.ErrPlaylistNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPermissionDenied):
-			handleError(c, errs.PermissionDenied(err.Error()))
-		case errors.Is(err, errs.ErrPlaylistAlreadyExists):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handleChangeTitle(
+		c,
+		func(p models.PlaylistChangeTitleURI) int64 { return p.PlaylistID },
+		func(f models.PlaylistChangeTitleForm) string { return f.Title },
+		errs.ErrPlaylistNotFound,
+		errs.ErrPlaylistAlreadyExists,
+		h.playlistSvc.ChangeTitle,
+	)
 }
 
 func (h *ContentHandler) changePlaylistChangeableID(c *gin.Context) {
-	var params models.PlaylistChangeChangeableIDUri
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	var request models.PlaylistChangeChangeableIDForm
-	if err := c.ShouldBind(&request); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	err = h.playlistSvc.ChangeChangeableID(c.Request.Context(), user.Id, params.PlaylistID, request.ChangeableID)
-	if err != nil {
-		switch {
-		case errors.Is(err, errs.ErrPlaylistNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPermissionDenied):
-			handleError(c, errs.PermissionDenied(err.Error()))
-		case errors.Is(err, errs.ErrChangeableIDExists):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handleChangeChangeableID(
+		c,
+		func(p models.PlaylistChangeChangeableIDUri) int64 { return p.PlaylistID },
+		func(f models.PlaylistChangeChangeableIDForm) string { return f.ChangeableID },
+		errs.ErrPlaylistNotFound,
+		h.playlistSvc.ChangeChangeableID,
+	)
 }
 
 func (h *ContentHandler) changePlaylistImage(c *gin.Context) {
-	var params models.PlaylistChangeImageURI
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	var request models.PlaylistChangeImageForm
-	if err := c.ShouldBind(&request); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	err = h.playlistSvc.ChangeImage(c.Request.Context(), user.Id, params.PlaylistID, request.ImageFile)
-	if err != nil {
-		switch {
-		case errors.Is(err, errs.ErrPlaylistNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPermissionDenied):
-			handleError(c, errs.PermissionDenied(err.Error()))
-		case errors.Is(err, errs.ErrInvalidImageFormat):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handleChangeImage(
+		c,
+		func(p models.PlaylistChangeImageURI) int64 { return p.PlaylistID },
+		func(f models.PlaylistChangeImageForm) *multipart.FileHeader { return f.ImageFile },
+		errs.ErrPlaylistNotFound,
+		nil,
+		h.playlistSvc.ChangeImage,
+	)
 }
 
 func (h *ContentHandler) deletePlaylist(c *gin.Context) {
-	var params models.PlaylistDeleteURI
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	if err := h.playlistSvc.Delete(c.Request.Context(), user.Id, params.PlaylistID); err != nil {
-		switch {
-		case errors.Is(err, errs.ErrPlaylistNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPermissionDenied):
-			handleError(c, errs.PermissionDenied(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handleDeleteByID(
+		c,
+		func(p models.PlaylistDeleteURI) int64 { return p.PlaylistID },
+		errs.ErrPlaylistNotFound,
+		h.playlistSvc.Delete,
+	)
 }
 
 func (h *ContentHandler) savePlaylist(c *gin.Context) {
-	var params models.GetByPlaylistIDURI
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	if err := h.playlistSvc.SavePlaylist(c.Request.Context(), user.Id, params.PlaylistID); err != nil {
-		switch {
-		case errors.Is(err, errs.ErrPlaylistNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPlaylistIsYours), errors.Is(err, errs.ErrPlaylistAlreadySaved):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handlePlaylistIDAction(
+		c,
+		errs.ErrPlaylistNotFound,
+		[]error{errs.ErrPlaylistIsYours, errs.ErrPlaylistAlreadySaved},
+		h.playlistSvc.SavePlaylist,
+	)
 }
 
 func (h *ContentHandler) removePlaylistFromSaved(c *gin.Context) {
-	var params models.GetByPlaylistIDURI
-	if err := c.ShouldBindUri(&params); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
-		return
-	}
-
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Internal(err, "failed to get user from context"))
-		return
-	}
-
-	if err := h.playlistSvc.RemoveFromSaved(c.Request.Context(), user.Id, params.PlaylistID); err != nil {
-		switch {
-		case errors.Is(err, errs.ErrPlaylistNotFound):
-			handleError(c, errs.NotFound(err.Error()))
-		case errors.Is(err, errs.ErrPlaylistIsNotSaved):
-			handleError(c, errs.InvalidArgument(err.Error()))
-		default:
-			handleError(c, errs.Internal(err, ""))
-		}
-		return
-	}
-
-	c.Status(http.StatusNoContent)
+	handlePlaylistIDAction(
+		c,
+		errs.ErrPlaylistNotFound,
+		[]error{errs.ErrPlaylistIsNotSaved},
+		h.playlistSvc.RemoveFromSaved,
+	)
 }

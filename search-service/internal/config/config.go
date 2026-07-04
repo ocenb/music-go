@@ -10,6 +10,8 @@ import (
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
+const envLocal = "local"
+
 type Config struct {
 	Environment           string        `env:"ENVIRONMENT" env-default:"local" validate:"oneof=local dev test prod"`
 	UserServiceAddress    string        `env:"USER_SERVICE_ADDRESS" env-required:"true"`
@@ -40,13 +42,13 @@ type ElasticConfig struct {
 func Load() (*Config, error) {
 	env := os.Getenv("ENVIRONMENT")
 	if env == "" {
-		env = "local"
+		env = envLocal
 	}
 
 	switch env {
-	case "local", "dev", "test", "prod":
+	case envLocal, "dev", "test", "prod":
 	default:
-		env = "local"
+		env = envLocal
 	}
 
 	configPath := filepath.Join("config", env+".yaml")

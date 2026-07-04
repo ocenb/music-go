@@ -108,14 +108,11 @@ func (s *Service) Delete(ctx context.Context, userID, playlistID int64) error {
 	}
 
 	err = s.tm.Run(ctx, func(txCtx context.Context) error {
-		if err := s.repo.Delete(txCtx, playlistID); err != nil {
-			return err
+		if delErr := s.repo.Delete(txCtx, playlistID); delErr != nil {
+			return delErr
 		}
 
-		if err := s.fileService.DeleteFile(txCtx, playlist.Image, fileservice.ImagesCategory); err != nil {
-			return err
-		}
-		return nil
+		return s.fileService.DeleteFile(txCtx, playlist.Image, fileservice.ImagesCategory)
 	})
 	if err != nil {
 		return fmt.Errorf("PlaylistService.Delete: %w", err)

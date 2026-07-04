@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/ocenb/music-go/content-service/internal/errs"
-	"github.com/ocenb/music-go/content-service/internal/middlewares"
 	"github.com/ocenb/music-go/content-service/internal/models"
 )
 
@@ -20,21 +19,18 @@ func (h *ContentHandler) registerPlaylistTracksRoutes(router *gin.RouterGroup) {
 }
 
 func (h *ContentHandler) getPlaylistTracks(c *gin.Context) {
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Unauthenticated(err.Error()))
+	user, ok := requiredUser(c)
+	if !ok {
 		return
 	}
 
 	var playlistReq models.GetByPlaylistIDURI
-	if err := c.ShouldBindUri(&playlistReq); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
+	if !bindURI(c, &playlistReq) {
 		return
 	}
 
 	var getManyReq models.PlaylistTracksGetManyForm
-	if err := c.ShouldBindQuery(&getManyReq); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
+	if !bindQuery(c, &getManyReq) {
 		return
 	}
 
@@ -53,21 +49,18 @@ func (h *ContentHandler) getPlaylistTracks(c *gin.Context) {
 }
 
 func (h *ContentHandler) addPlaylistTrack(c *gin.Context) {
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Unauthenticated(err.Error()))
+	user, ok := requiredUser(c)
+	if !ok {
 		return
 	}
 
 	var playlistTrackIDsReq models.PlaylistTrackIDsURI
-	if err := c.ShouldBindUri(&playlistTrackIDsReq); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
+	if !bindURI(c, &playlistTrackIDsReq) {
 		return
 	}
 
 	var addTrackReq models.AddTrackJSON
-	if err := c.ShouldBindJSON(&addTrackReq); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
+	if !bindJSON(c, &addTrackReq) {
 		return
 	}
 
@@ -98,25 +91,22 @@ func (h *ContentHandler) addPlaylistTrack(c *gin.Context) {
 }
 
 func (h *ContentHandler) updatePlaylistTrackPosition(c *gin.Context) {
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Unauthenticated(err.Error()))
+	user, ok := requiredUser(c)
+	if !ok {
 		return
 	}
 
 	var playlistTrackIDsReq models.PlaylistTrackIDsURI
-	if err := c.ShouldBindUri(&playlistTrackIDsReq); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
+	if !bindURI(c, &playlistTrackIDsReq) {
 		return
 	}
 
 	var updatePositionReq models.UpdatePositionJSON
-	if err := c.ShouldBindJSON(&updatePositionReq); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
+	if !bindJSON(c, &updatePositionReq) {
 		return
 	}
 
-	err = h.playlistTracksSvc.UpdatePosition(
+	err := h.playlistTracksSvc.UpdatePosition(
 		c,
 		user.Id,
 		playlistTrackIDsReq.PlaylistID,
@@ -143,19 +133,17 @@ func (h *ContentHandler) updatePlaylistTrackPosition(c *gin.Context) {
 }
 
 func (h *ContentHandler) removePlaylistTrack(c *gin.Context) {
-	user, err := middlewares.UserFromContext(c.Request.Context())
-	if err != nil {
-		handleError(c, errs.Unauthenticated(err.Error()))
+	user, ok := requiredUser(c)
+	if !ok {
 		return
 	}
 
 	var playlistTrackIDsReq models.PlaylistTrackIDsURI
-	if err := c.ShouldBindUri(&playlistTrackIDsReq); err != nil {
-		handleError(c, errs.InvalidArgument(err.Error()))
+	if !bindURI(c, &playlistTrackIDsReq) {
 		return
 	}
 
-	err = h.playlistTracksSvc.Remove(c, user.Id, playlistTrackIDsReq.PlaylistID, playlistTrackIDsReq.TrackID)
+	err := h.playlistTracksSvc.Remove(c, user.Id, playlistTrackIDsReq.PlaylistID, playlistTrackIDsReq.TrackID)
 	if err != nil {
 		switch {
 		case errors.Is(err, errs.ErrPlaylistNotFound):

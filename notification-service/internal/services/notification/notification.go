@@ -21,14 +21,17 @@ func New(smtp SMTPClient) *Service {
 }
 
 func (s *Service) SendEmailNotification(ctx context.Context, email, msg string) error {
-	const maxRetries = 3
+	const (
+		maxRetries             = 3
+		retryBackoffMultiplier = 2
+	)
 	var lastErr error
 
 	htmlBody := fmt.Sprintf(`<html><body><p>%s</p></body></html>`, msg)
 
 	for i := range maxRetries {
 		if i > 0 {
-			time.Sleep(time.Second * time.Duration(i*2))
+			time.Sleep(time.Second * time.Duration(i*retryBackoffMultiplier))
 		}
 
 		err := s.smtp.Send(ctx, email, htmlBody)

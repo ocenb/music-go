@@ -35,7 +35,7 @@ func New(
 }
 
 func (s *Server) Start(ctx context.Context) error {
-	s.log.Info("starting notification consumer")
+	s.log.InfoContext(ctx, "starting notification consumer")
 
 	for {
 		select {
@@ -49,13 +49,13 @@ func (s *Server) Start(ctx context.Context) error {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return nil
 			}
-			s.log.Error("failed to read kafka message", logattr.Err(err))
+			s.log.ErrorContext(ctx, "failed to read kafka message", logattr.Err(err))
 			continue
 		}
 
 		msgCtx := logger.IntoContext(ctx, s.log)
 		if err := handlers.HandleEmailNotification(msgCtx, s.notificationService, notification); err != nil {
-			s.log.Error("failed to handle notification", logattr.Err(err))
+			s.log.ErrorContext(ctx, "failed to handle notification", logattr.Err(err))
 		}
 	}
 }

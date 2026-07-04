@@ -2,7 +2,6 @@ package tests_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +31,6 @@ func TestEmailNotificationE2E(t *testing.T) {
 		recorded, err := env.smtp.waitForMessage(waitCtx)
 		require.NoError(t, err)
 		assert.Equal(t, email, recorded.To)
-		assert.True(t, strings.Contains(recorded.Body, msg))
+		assert.Contains(t, recorded.Body, msg)
 	})
 }

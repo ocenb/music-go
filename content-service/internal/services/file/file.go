@@ -27,6 +27,9 @@ const (
 	AudioCategory  Category = "audio"
 	ImagesCategory Category = "images"
 	tempDir                 = "/app/temp"
+	imageSizeLarge          = 250
+	imageSizeSmall          = 50
+	jpegQuality             = 90
 )
 
 type AudioResult struct {
@@ -72,7 +75,7 @@ func (s *Service) SaveAudio(ctx context.Context, file *multipart.FileHeader) (*A
 	}
 	defer func() {
 		if err := os.Remove(tempFilePath); err != nil {
-			s.log.Error("Failed to remove file", "error", err)
+			s.log.ErrorContext(ctx, "Failed to remove file", "error", err)
 		}
 	}()
 
@@ -87,7 +90,7 @@ func (s *Service) SaveAudio(ctx context.Context, file *multipart.FileHeader) (*A
 	}
 	defer func() {
 		if err := os.Remove(outputFilePath); err != nil {
-			s.log.Error("Failed to remove file", "error", err)
+			s.log.ErrorContext(ctx, "Failed to remove file", "error", err)
 		}
 	}()
 
@@ -123,8 +126,8 @@ func (s *Service) SaveImage(ctx context.Context, file *multipart.FileHeader) (st
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer func() {
-		if err := src250.Close(); err != nil {
-			s.log.Error("Failed to close file", "error", err)
+		if closeErr := src250.Close(); closeErr != nil {
+			s.log.ErrorContext(ctx, "Failed to close file", "error", closeErr)
 		}
 	}()
 
@@ -133,17 +136,17 @@ func (s *Service) SaveImage(ctx context.Context, file *multipart.FileHeader) (st
 		return "", fmt.Errorf("failed to create 250x250 file: %w", err)
 	}
 	defer func() {
-		if err := out250.Close(); err != nil {
-			s.log.Error("Failed to close file", "error", err)
+		if closeErr := out250.Close(); closeErr != nil {
+			s.log.ErrorContext(ctx, "Failed to close file", "error", closeErr)
 		}
 	}()
 
-	if err := s.resize(src250, out250, 250, 250); err != nil {
-		return "", fmt.Errorf("failed to process 250x250 image: %w", err)
+	if resizeErr := s.resize(src250, out250, imageSizeLarge, imageSizeLarge); resizeErr != nil {
+		return "", fmt.Errorf("failed to process 250x250 image: %w", resizeErr)
 	}
 	defer func() {
-		if err := os.Remove(filePath250); err != nil {
-			s.log.Error("Failed to remove file", "error", err)
+		if removeErr := os.Remove(filePath250); removeErr != nil {
+			s.log.ErrorContext(ctx, "Failed to remove file", "error", removeErr)
 		}
 	}()
 
@@ -152,8 +155,8 @@ func (s *Service) SaveImage(ctx context.Context, file *multipart.FileHeader) (st
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer func() {
-		if err := src50.Close(); err != nil {
-			s.log.Error("Failed to close file", "error", err)
+		if closeErr := src50.Close(); closeErr != nil {
+			s.log.ErrorContext(ctx, "Failed to close file", "error", closeErr)
 		}
 	}()
 
@@ -162,17 +165,17 @@ func (s *Service) SaveImage(ctx context.Context, file *multipart.FileHeader) (st
 		return "", fmt.Errorf("failed to create 50x50 file: %w", err)
 	}
 	defer func() {
-		if err := out50.Close(); err != nil {
-			s.log.Error("Failed to close file", "error", err)
+		if closeErr := out50.Close(); closeErr != nil {
+			s.log.ErrorContext(ctx, "Failed to close file", "error", closeErr)
 		}
 	}()
 
-	if err := s.resize(src50, out50, 50, 50); err != nil {
-		return "", fmt.Errorf("failed to process 50x50 image: %w", err)
+	if resizeErr := s.resize(src50, out50, imageSizeSmall, imageSizeSmall); resizeErr != nil {
+		return "", fmt.Errorf("failed to process 50x50 image: %w", resizeErr)
 	}
 	defer func() {
 		if err := os.Remove(filePath50); err != nil {
-			s.log.Error("Failed to remove file", "error", err)
+			s.log.ErrorContext(ctx, "Failed to remove file", "error", err)
 		}
 	}()
 
@@ -189,16 +192,16 @@ func (s *Service) SaveImage(ctx context.Context, file *multipart.FileHeader) (st
 
 func (s *Service) DeleteFile(ctx context.Context, fileName string, category Category) error {
 	if category == ImagesCategory {
-		s.log.Info("Deleting 250x250 image", "fileName", fileName)
+		s.log.InfoContext(ctx, "Deleting 250x250 image", "fileName", fileName)
 		if err := s.cloudinary.Delete(ctx, fmt.Sprintf("images/%s_250x250", fileName), "image"); err != nil {
 			return fmt.Errorf("failed to delete 250x250 image: %w", err)
 		}
-		s.log.Info("Deleting 50x50 image", "fileName", fileName)
+		s.log.InfoContext(ctx, "Deleting 50x50 image", "fileName", fileName)
 		if err := s.cloudinary.Delete(ctx, fmt.Sprintf("images/%s_50x50", fileName), "image"); err != nil {
 			return fmt.Errorf("failed to delete 50x50 image: %w", err)
 		}
 	} else {
-		s.log.Info("Deleting audio", "fileName", fileName)
+		s.log.InfoContext(ctx, "Deleting audio", "fileName", fileName)
 		if err := s.cloudinary.Delete(ctx, fmt.Sprintf("audio/%s", fileName), "video"); err != nil {
 			return fmt.Errorf("failed to delete audio file: %w", err)
 		}
@@ -212,8 +215,8 @@ func (s *Service) saveMultipartFile(file *multipart.FileHeader, dst string) erro
 		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer func() {
-		if err := src.Close(); err != nil {
-			s.log.Error("Failed to close file", "error", err)
+		if closeErr := src.Close(); closeErr != nil {
+			s.log.Error("Failed to close file", "error", closeErr)
 		}
 	}()
 
@@ -222,8 +225,8 @@ func (s *Service) saveMultipartFile(file *multipart.FileHeader, dst string) erro
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer func() {
-		if err := out.Close(); err != nil {
-			s.log.Error("Failed to close file", "error", err)
+		if closeErr := out.Close(); closeErr != nil {
+			s.log.Error("Failed to close file", "error", closeErr)
 		}
 	}()
 
@@ -241,8 +244,8 @@ func (s *Service) resize(input io.Reader, output io.Writer, width, height int) e
 
 	resized := resize.Resize(uint(width), uint(height), img, resize.Lanczos3)
 
-	if err := jpeg.Encode(output, resized, &jpeg.Options{Quality: 90}); err != nil {
-		return fmt.Errorf("failed to encode image: %w", err)
+	if encodeErr := jpeg.Encode(output, resized, &jpeg.Options{Quality: jpegQuality}); encodeErr != nil {
+		return fmt.Errorf("failed to encode image: %w", encodeErr)
 	}
 
 	return nil
@@ -289,8 +292,8 @@ func (s *Service) getAudioDuration(filePath string) (int, error) {
 		} `json:"format"`
 	}
 
-	if err := json.Unmarshal([]byte(probe), &metadata); err != nil {
-		return 0, fmt.Errorf("failed to parse metadata: %w", err)
+	if unmarshalErr := json.Unmarshal([]byte(probe), &metadata); unmarshalErr != nil {
+		return 0, fmt.Errorf("failed to parse metadata: %w", unmarshalErr)
 	}
 
 	duration, err := strconv.ParseFloat(metadata.Format.Duration, 64)
