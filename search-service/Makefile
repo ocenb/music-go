@@ -33,7 +33,7 @@ gen-mocks:
 	mockery
 
 test-unit tu:
-	go test ./internal/...
+	go test ./internal/... | grep -v '\[no test files\]'
 
 test-cover:
 	go test -cover ./internal/...

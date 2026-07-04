@@ -1,0 +1,6 @@
+inpackage: true
+template: testify
+packages:
+  github.com/ocenb/music-go/content-service/internal/services/track:
+    config:
+      all: true

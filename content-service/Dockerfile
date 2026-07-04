@@ -1,32 +1,17 @@
-FROM golang:1.24-alpine AS build
-
+FROM golang:1.26.1-alpine AS builder
 WORKDIR /app
-
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o main ./cmd/content-service
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s" -a -installsuffix cgo -o /app/content-service cmd/content-service/main.go
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s" -a -installsuffix cgo -o /app/migrate cmd/migrate/main.go
-
-FROM alpine:latest
-
+FROM alpine:3.23.2
+RUN apk add --no-cache ffmpeg
+RUN adduser -D -H -h /app appuser && mkdir -p /app/temp && chown appuser:appuser /app/temp
 WORKDIR /app
-
-RUN apk add --no-cache bash postgresql-client ffmpeg
-
-RUN mkdir -p /app/temp && chmod 777 /app/temp
-
-COPY --from=build /app/content-service /app/content-service
-COPY --from=build /app/migrate /app/migrate
-COPY --from=build /app/migrations /app/migrations
-
-COPY --from=build /app/start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
+RUN chown appuser:appuser /app
+COPY --from=builder --chown=appuser:appuser /app/main .
+COPY --from=builder --chown=appuser:appuser /app/config ./config
+USER appuser
 EXPOSE 3000
-
-CMD ["/app/start.sh"]
+CMD ["./main"]

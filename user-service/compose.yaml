@@ -6,11 +6,12 @@ services:
     env_file:
       - .env
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: user-service-postgres
       POSTGRES_PORT: 5432
       SEARCH_SERVICE_ADDRESS: search-service-app:9091
       CONTENT_SERVICE_URL: http://content-service-app:3000
       KAFKA_BROKERS: kafka:19092
+      KAFKA_TOPIC: email-notifications
     volumes:
       - ./config:/app/config
     depends_on:
@@ -42,7 +43,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
     networks:
-      - music-go-network
+      music-go-network:
+        aliases:
+          - user-service-postgres
 
 volumes:
   postgres_data:

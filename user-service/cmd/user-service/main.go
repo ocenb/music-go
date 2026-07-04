@@ -107,7 +107,7 @@ func run() int {
 		}
 	}()
 
-	notificationClient, err := notification.New(cfg.Kafka.Brokers)
+	notificationClient, err := notification.New(cfg.Kafka.Brokers, cfg.Kafka.Topic)
 	if err != nil {
 		log.Error("failed to create notification client", logattr.Err(err))
 		return 1

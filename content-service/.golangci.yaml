@@ -1,0 +1,67 @@
+version: "2"
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - goimports
+
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/ocenb/music-go/content-service
+
+linters:
+  enable:
+    - gocritic
+    - gosec
+    - revive
+  exclusions:
+    warn-unused: false
+
+    presets:
+      - std-error-handling
+      - common-false-positives
+
+    rules:
+      - source: "TODO"
+        linters: [godot]
+
+      - text: "should have a package comment"
+        linters: [revive]
+
+      - text: 'exported \S+ \S+ should have comment( \(or a comment on this block\))? or be unexported'
+        linters: [revive]
+
+      - text: 'package comment should be of the form ".+"'
+        source: "// ?(nolint|TODO)"
+        linters: [revive]
+
+      - text: 'comment on exported \S+ \S+ should be of the form ".+"'
+        source: "// ?(nolint|TODO)"
+        linters: [revive, staticcheck]
+
+      - path: 'repo\.go'
+        linters:
+          - goconst
+
+      - path: 'repo_test\.go'
+        linters:
+          - paralleltest
+
+      - path: '_test\.go'
+        linters:
+          - bodyclose
+          - dupl
+          - errcheck
+          - goconst
+          - gosec
+          - noctx
+          - forbidigo
+
+      - path: "tests/"
+        linters:
+          - forbidigo
+          - paralleltest

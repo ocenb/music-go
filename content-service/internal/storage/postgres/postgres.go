@@ -1,28 +1,32 @@
 package postgres
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 
-	"github.com/ocenb/music-go/content-service/internal/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	_ "github.com/lib/pq"
+	"github.com/ocenb/music-go/content-service/internal/config"
 )
 
-func New(cfg *config.Config) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.DatabaseUrl)
+func NewPool(ctx context.Context, cfg config.PostgresConfig) (*pgxpool.Pool, error) {
+	poolConfig, err := pgxpool.ParseConfig(cfg.DSN)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open postgres connection: %w", err)
+		return nil, fmt.Errorf("failed to parse postgres config: %w", err)
 	}
 
-	db.SetMaxOpenConns(cfg.DBMaxOpenConns)
-	db.SetMaxIdleConns(cfg.DBMaxIdleConns)
-	db.SetConnMaxLifetime(cfg.DBConnMaxLifetime)
+	poolConfig.MaxConns = cfg.MaxOpenConns
+	poolConfig.MinConns = cfg.MaxIdleConns
+	poolConfig.MaxConnLifetime = cfg.ConnMaxLifetime
 
-	err = db.Ping()
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
+		return nil, fmt.Errorf("failed to connect to postgres: %w", err)
+	}
+
+	if err := pool.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping postgres: %w", err)
 	}
 
-	return db, nil
+	return pool, nil
 }

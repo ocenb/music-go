@@ -58,6 +58,7 @@ type AuthConfig struct {
 
 type KafkaConfig struct {
 	Brokers []string `env:"KAFKA_BROKERS" env-required:"true"`
+	Topic   string   `env:"KAFKA_TOPIC" env-default:"email-notifications" validate:"required"`
 }
 
 func (p *PostgresConfig) buildDSN() {
