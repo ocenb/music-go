@@ -38,6 +38,10 @@
 
 - PostgreSQL для хранения данных
 - HTTP REST API на основе Gin для обработки запросов
+- gRPC-клиенты к User Service и Search Service
+- Kafka для отправки уведомлений
+- Cloudinary для хранения аудио и обложек
+- FFmpeg для обработки аудиофайлов
 
 ### Search Service
 
@@ -59,26 +63,30 @@
 
 ## Тестирование
 
+Команды выполняются из каталога нужного сервиса:
+
 - **Юнит-тесты**
 
 ```bash
+cd user-service   # или content-service, search-service, notification-service
 make tu
 ```
 
 - **Функциональные тесты**
 
 ```bash
+cd user-service
 make tf
 ```
 
-Для unit тестирования используются моки (директория `internal/mocks`).
+Для unit-тестирования используются моки, генерируемые mockery (`make gen-mocks`).
 
 ## Запуск проекта
 
 ### Требования
 
 - Docker и Docker Compose
-- Go 1.24+
+- Go 1.26+
 - Make
 
 ### Общая сеть Docker
@@ -91,37 +99,39 @@ docker network create music-go-network
 
 ### Запуск сервисов
 
-Каждый микросервис можно запустить отдельно:
-
 1. User Service:
 
 ```bash
 cd user-service
-cp .env.example .env
-docker compose up -d
+make up-dev
 ```
 
 2. Content Service:
 
 ```bash
 cd content-service
-cp .env.example .env
-docker compose up -d
+make up-dev
 ```
 
 3. Search Service:
 
 ```bash
 cd search-service
-cp .env.example .env
-docker compose up -d
+make up-dev
 ```
 
 4. Notification Service:
 
 ```bash
 cd notification-service
-cp .env.example .env
+make up-dev
+```
+
+### API Gateway
+
+После запуска сервисов поднимите Nginx gateway из корня репозитория — он проксирует HTTP-запросы к Content Service и gRPC к User Service:
+
+```bash
 docker compose up -d
 ```
 
@@ -145,36 +155,48 @@ kubectl apply -k k8s/overlays/local
 
 ## Структура кода
 
-Все микросервисы следуют похожей структуре проекта:
+Все сервисы следуют схожей структуре:
 
 ```
-├── cmd/                 # Точки входа приложения
-│   ├── service-name/    # Основная точка входа
-│   └── migrate/         # Утилита для миграций
-├── internal/            # Внутренний код приложения
-│   ├── app/             # Инициализация приложения
-│   ├── config/          # Конфигурация
-│   ├── handlers/        # Обработчики запросов
-│   ├── logger/          # Логирование
-│   ├── mocks/           # Моки для unit тестов
-│   ├── models/          # Модели данных
-│   ├── repos/           # Репозитории для работы с БД
-│   ├── services/        # Бизнес-логика
-│   ├── clients/         # Клиенты для других сервисов
-│   ├── storage/         # Код для работы с БД
-│   └── utils/           # Утилиты
-├── migrations/          # Миграции БД
-├── config/              # Файлы конфигурации
-├── tests/               # Функциональные тесты
-│   └── suite/           # Настройка тестового окружения
-├── Dockerfile           # Сборка Docker образа
-├── compose.yaml           # Конфигурация Docker Compose
-├── .env.example         # Пример переменных окружения
-└── Makefile             # Команды для сборки и запуска
+service-name/
+├── cmd/
+│   └── service-name/       # Точка входа (main.go)
+├── internal/
+│   ├── config/             # Загрузка конфигурации из env и YAML
+│   ├── server/             # Сборка и запуск HTTP/gRPC сервера
+│   ├── handlers/           # HTTP/gRPC обработчики
+│   ├── middlewares/        # Auth, logging (user, content, search)
+│   ├── services/           # Бизнес-логика (пакеты по доменам)
+│   ├── repos/              # Доступ к данным
+│   ├── models/             # Модели и DTO
+│   ├── clients/            # Клиенты других сервисов и внешних API
+│   ├── storage/            # Подключения к БД, Kafka, Elasticsearch
+│   ├── errs/               # Типизированные ошибки, маппинг в HTTP/gRPC
+│   └── logger/             # Structured logging (slog)
+├── config/
+│   └── local.yaml          # Локальные настройки по умолчанию
+├── migrations/             # SQL-миграции (user, content), goose
+├── tests/                  # E2E-тесты
+├── Dockerfile
+├── compose.yaml
+├── compose.override.yaml   # Локальные переопределения Docker Compose
+├── .env.example
+└── Makefile                # build, migrate, tu, tf и др.
 ```
+
+Отличия по сервисам:
+
+- **user-service, content-service** — PostgreSQL (`storage/postgres`, `storage/migrator`, `storage/transactor`), SQL-миграции в `migrations/`
+- **search-service** — Elasticsearch (`storage/elastic`)
+- **notification-service** — Kafka (`storage/kafka`, `internal/kafka`), SMTP-клиент (`clients/smtp`)
 
 ## Коммуникация между сервисами
 
-- User Service и Search Service используют gRPC для синхронной коммуникации
-- Content Service использует HTTP
-- Notification Service использует Kafka
+| Сервис | Принимает | Отправляет |
+|--------|-----------|------------|
+| **user-service** | gRPC (регистрация, auth, профили) | gRPC → search, content; Kafka → notification |
+| **content-service** | HTTP REST (треки, плейлисты, история) | gRPC → user, search; Kafka → notification; Cloudinary |
+| **search-service** | gRPC (поиск) | gRPC → user; Elasticsearch |
+| **notification-service** | Kafka (события) | SMTP (email) |
+
+Nginx gateway в корне проекта маршрутизирует внешние запросы: `/api/content/*` → content-service, gRPC → user-service.
