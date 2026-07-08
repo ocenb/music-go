@@ -15,6 +15,10 @@
 - Docker, Nginx, Kubernetes, Kustomize
 - Cloudinary (file storage)
 
+### Frontend
+
+<https://github.com/ocenb/music-app-frontend>
+
 ### Proto файлы
 
 <https://github.com/ocenb/music-protos>
