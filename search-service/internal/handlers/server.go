@@ -30,8 +30,8 @@ type SearchService interface {
 }
 
 type SearchServer struct {
-	searchservice.UnimplementedSearchServiceServer
-	searchService SearchService
+	searchservice.UnimplementedSearchServiceServer `exhaustruct:"optional"`
+	searchService                                  SearchService
 }
 
 func NewSearchServer(gRPCServer *grpc.Server, searchService SearchService) {

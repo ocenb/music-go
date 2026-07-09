@@ -38,9 +38,9 @@ type UserService interface {
 }
 
 type UserServer struct {
-	userservice.UnimplementedUserServiceServer
-	authService AuthService
-	userService UserService
+	userservice.UnimplementedUserServiceServer `exhaustruct:"optional"`
+	authService                                AuthService
+	userService                                UserService
 }
 
 func NewUserServer(gRPCServer *grpc.Server, authService AuthService, userService UserService) {

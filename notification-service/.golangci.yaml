@@ -20,6 +20,7 @@ linters:
     - errcheck
     - errname
     - exhaustive
+    - exhaustruct
     - forbidigo
     - funcorder
     - gocognit
@@ -61,6 +62,14 @@ linters:
       check:
         - switch
         - map
+
+    exhaustruct:
+      # Checks if all structure fields are initialized.
+      # Lazy-init / intentionally omitted fields: mark with `exhaustruct:"optional"` tag
+      include:
+        - '.*/handlers\..*(Handler|Server)$'
+        - '.*/services/.+\.Service$'
+        - '.*/repos/.+\.Repo$'
 
     funcorder:
       # Checks if the exported methods of a structure are placed before the non-exported ones.
