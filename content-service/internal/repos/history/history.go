@@ -10,10 +10,10 @@ import (
 )
 
 type Repo struct {
-	tm *transactor.Manager
+	tm transactor.Querier
 }
 
-func New(tm *transactor.Manager) *Repo {
+func New(tm transactor.Querier) *Repo {
 	return &Repo{tm: tm}
 }
 

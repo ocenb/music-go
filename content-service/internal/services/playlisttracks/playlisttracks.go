@@ -34,14 +34,14 @@ type Service struct {
 	repo         Repo
 	playlistRepo PlaylistRepo
 	trackRepo    TrackRepo
-	tm           *transactor.Manager
+	tm           transactor.Runner
 }
 
 func New(
 	repo Repo,
 	playlistRepo PlaylistRepo,
 	trackRepo TrackRepo,
-	tm *transactor.Manager,
+	tm transactor.Runner,
 ) *Service {
 	return &Service{
 		repo:         repo,

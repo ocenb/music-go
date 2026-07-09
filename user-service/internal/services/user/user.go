@@ -44,14 +44,14 @@ type ContentClient interface {
 
 type Service struct {
 	repo          Repo
-	tm            *transactor.Manager
+	tm            transactor.Runner
 	searchClient  SearchClient
 	contentClient ContentClient
 }
 
 func New(
 	repo Repo,
-	tm *transactor.Manager,
+	tm transactor.Runner,
 	searchClient SearchClient,
 	contentClient ContentClient,
 ) *Service {

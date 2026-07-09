@@ -17,7 +17,7 @@ type TrackServiceSuite struct {
 	mockFileService        *track.MockFileService
 	mockSearchClient       *track.MockSearchClient
 	mockNotificationClient *track.MockNotificationClient
-	tm                     *transactor.Manager
+	tm                     transactor.Runner
 	service                *track.Service
 }
 

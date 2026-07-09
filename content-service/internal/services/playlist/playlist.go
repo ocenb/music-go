@@ -36,10 +36,10 @@ type FileService interface {
 type Service struct {
 	repo        Repo
 	fileService FileService
-	tm          *transactor.Manager
+	tm          transactor.Runner
 }
 
-func New(repo Repo, fileService FileService, tm *transactor.Manager) *Service {
+func New(repo Repo, fileService FileService, tm transactor.Runner) *Service {
 	return &Service{
 		repo:        repo,
 		fileService: fileService,

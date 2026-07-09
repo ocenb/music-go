@@ -53,7 +53,7 @@ type Service struct {
 	fileService        FileService
 	searchClient       SearchClient
 	notificationClient NotificationClient
-	tm                 *transactor.Manager
+	tm                 transactor.Runner
 }
 
 func New(
@@ -61,7 +61,7 @@ func New(
 	fileService FileService,
 	searchClient SearchClient,
 	notificationClient NotificationClient,
-	tm *transactor.Manager,
+	tm transactor.Runner,
 ) *Service {
 	return &Service{
 		repo:               repo,

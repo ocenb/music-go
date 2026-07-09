@@ -45,7 +45,7 @@ type Service struct {
 	userService        UserService
 	tokenService       TokenService
 	notificationClient NotificationClient
-	tm                 *transactor.Manager
+	tm                 transactor.Runner
 	bcryptCost         int
 }
 
@@ -53,7 +53,7 @@ func New(
 	userService UserService,
 	tokenService TokenService,
 	notificationClient NotificationClient,
-	tm *transactor.Manager,
+	tm transactor.Runner,
 	bcryptCost int,
 ) *Service {
 	return &Service{

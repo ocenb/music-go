@@ -20,6 +20,7 @@ type Config struct {
 	InternalServiceSecret string         `env:"INTERNAL_SERVICE_SECRET" env-required:"true"`
 	Domain                string         `env:"DOMAIN" env-required:"true"`
 	DBConnectTimeout      time.Duration  `yaml:"db_connect_timeout" env:"DB_CONNECT_TIMEOUT" env-default:"10s" validate:"min=1s"`
+	DBMigrateTimeout      time.Duration  `yaml:"db_migrate_timeout" env:"DB_MIGRATE_TIMEOUT" env-default:"5m" validate:"min=1s"`
 	ShutdownTimeout       time.Duration  `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT" env-default:"30s" validate:"min=1s"`
 	ImageFileLimit        int64          `yaml:"image_file_limit" env:"IMAGE_FILE_LIMIT" env-default:"10485760" validate:"min=1"`
 	AudioFileLimit        int64          `yaml:"audio_file_limit" env:"AUDIO_FILE_LIMIT" env-default:"52428800" validate:"min=1"`

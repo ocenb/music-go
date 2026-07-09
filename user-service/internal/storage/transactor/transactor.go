@@ -16,6 +16,19 @@ type Client interface {
 	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
 }
 
+type Runner interface {
+	Run(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+type Querier interface {
+	GetQueryEngine(ctx context.Context) Client
+}
+
+type Manager interface {
+	Runner
+	Querier
+}
+
 type txKey struct{}
 
 func injectTx(ctx context.Context, tx pgx.Tx) context.Context {
@@ -29,20 +42,20 @@ func extractTx(ctx context.Context) pgx.Tx {
 	return nil
 }
 
-type Manager struct {
+type manager struct {
 	pool     *pgxpool.Pool
 	mockMode bool
 }
 
-func New(pool *pgxpool.Pool) *Manager {
-	return &Manager{pool: pool}
+func New(pool *pgxpool.Pool) Manager {
+	return &manager{pool: pool}
 }
 
-func NewMock() *Manager {
-	return &Manager{mockMode: true}
+func NewMock() Manager {
+	return &manager{mockMode: true}
 }
 
-func (m *Manager) Run(ctx context.Context, fn func(ctx context.Context) error) error {
+func (m *manager) Run(ctx context.Context, fn func(ctx context.Context) error) error {
 	if m.mockMode {
 		return fn(ctx)
 	}
@@ -68,7 +81,7 @@ func (m *Manager) Run(ctx context.Context, fn func(ctx context.Context) error) e
 	return nil
 }
 
-func (m *Manager) GetQueryEngine(ctx context.Context) Client {
+func (m *manager) GetQueryEngine(ctx context.Context) Client {
 	if tx := extractTx(ctx); tx != nil {
 		return tx
 	}

@@ -19,6 +19,7 @@ type Config struct {
 	ContentServiceURL     string         `env:"CONTENT_SERVICE_URL" env-required:"true" validate:"url"`
 	InternalServiceSecret string         `env:"INTERNAL_SERVICE_SECRET" env-required:"true"`
 	DBConnectTimeout      time.Duration  `yaml:"db_connect_timeout" env:"DB_CONNECT_TIMEOUT" env-default:"10s" validate:"min=1s"`
+	DBMigrateTimeout      time.Duration  `yaml:"db_migrate_timeout" env:"DB_MIGRATE_TIMEOUT" env-default:"5m" validate:"min=1s"`
 	ShutdownTimeout       time.Duration  `yaml:"shutdown_timeout" env:"SHUTDOWN_TIMEOUT" env-default:"10s" validate:"min=1s"`
 	Log                   LogConfig      `yaml:",inline"`
 	Postgres              PostgresConfig `yaml:",inline"`

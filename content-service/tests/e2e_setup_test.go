@@ -118,7 +118,7 @@ func setupTestEnv(ctx context.Context, t *testing.T) testEnv {
 
 	mgr, err := migrator.New(ctx, connStr, migrations.FS, goose.NopLogger())
 	require.NoError(t, err)
-	require.NoError(t, mgr.Up())
+	require.NoError(t, mgr.Up(ctx))
 	require.NoError(t, mgr.Close())
 
 	poolCfg := config.PostgresConfig{

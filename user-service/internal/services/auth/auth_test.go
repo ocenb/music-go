@@ -20,7 +20,7 @@ type AuthServiceSuite struct {
 	mockUserService        *auth.MockUserService
 	mockTokenService       *auth.MockTokenService
 	mockNotificationClient *auth.MockNotificationClient
-	tm                     *transactor.Manager
+	tm                     transactor.Runner
 	service                *auth.Service
 }
 

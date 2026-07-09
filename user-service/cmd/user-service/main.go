@@ -55,9 +55,9 @@ func run() int {
 			slog.String("port", cfg.Postgres.Port),
 			slog.String("database", cfg.Postgres.Name),
 		)
-		migrateCtx, migrateCancel := context.WithTimeout(ctx, cfg.DBConnectTimeout)
-		defer migrateCancel()
-		migrate, migrateErr := migrator.New(migrateCtx, cfg.Postgres.DSN, migrations.FS, logger.NewSlogAdapter(log))
+		connectCtx, connectCancel := context.WithTimeout(ctx, cfg.DBConnectTimeout)
+		migrate, migrateErr := migrator.New(connectCtx, cfg.Postgres.DSN, migrations.FS, logger.NewSlogAdapter(log))
+		connectCancel()
 		if migrateErr != nil {
 			return migrateErr
 		}
@@ -68,7 +68,9 @@ func run() int {
 		}()
 
 		log.Info("running migrations")
-		if migrateErr = migrate.Up(); migrateErr != nil {
+		migrateCtx, migrateCancel := context.WithTimeout(ctx, cfg.DBMigrateTimeout)
+		defer migrateCancel()
+		if migrateErr = migrate.Up(migrateCtx); migrateErr != nil {
 			return migrateErr
 		}
 		log.Info("migrations completed successfully")
