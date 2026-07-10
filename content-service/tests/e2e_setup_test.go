@@ -72,15 +72,19 @@ type noopSearchClient struct{}
 func (noopSearchClient) AddTrack(_ context.Context, _ *searchservice.AddOrUpdateRequest) (*searchservice.SuccessResponse, error) {
 	return &searchservice.SuccessResponse{}, nil
 }
+
 func (noopSearchClient) UpdateTrack(_ context.Context, _ *searchservice.AddOrUpdateRequest) (*searchservice.SuccessResponse, error) {
 	return &searchservice.SuccessResponse{}, nil
 }
+
 func (noopSearchClient) DeleteTrack(_ context.Context, _ *searchservice.DeleteRequest) (*searchservice.SuccessResponse, error) {
 	return &searchservice.SuccessResponse{}, nil
 }
+
 func (noopSearchClient) SearchUsers(_ context.Context, _ *searchservice.SearchRequest) (*searchservice.SearchResponse, error) {
 	return &searchservice.SearchResponse{}, nil
 }
+
 func (noopSearchClient) SearchTracks(_ context.Context, _ *searchservice.SearchRequest) (*searchservice.SearchResponse, error) {
 	return &searchservice.SearchResponse{}, nil
 }

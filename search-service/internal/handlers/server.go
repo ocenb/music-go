@@ -5,9 +5,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"google.golang.org/grpc"
-
 	"github.com/ocenb/music-protos/gen/searchservice"
+	"google.golang.org/grpc"
 
 	"github.com/ocenb/music-go/search-service/internal/errs"
 	"github.com/ocenb/music-go/search-service/internal/logger"

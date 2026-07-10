@@ -4,9 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"google.golang.org/protobuf/types/known/emptypb"
-
 	"github.com/ocenb/music-protos/gen/userservice"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/ocenb/music-go/user-service/internal/logger"
 	"github.com/ocenb/music-go/user-service/internal/middlewares"

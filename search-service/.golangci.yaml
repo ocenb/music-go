@@ -6,12 +6,15 @@ issues:
 
 formatters:
   enable:
-    - goimports
-
+    - gci
+    - gofumpt
   settings:
-    goimports:
-      local-prefixes:
-        - github.com/ocenb/music-go/search-service
+    gci:
+      sections:
+        - standard
+        - default
+        - localmodule
+      custom-order: true
 
 linters:
   enable:
