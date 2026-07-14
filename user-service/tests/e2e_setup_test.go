@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,20 +42,16 @@ import (
 )
 
 const (
-	adminUsername      = "admin"
-	adminEmail         = "admin@example.com"
-	adminPassword      = "Password123!"
-	toChangeUsername   = "tochange"
-	toChangeEmail      = "tochange@example.com"
-	toChangePassword   = "Password123!"
-	changeNameEmail    = "changename@example.com"
-	changeNamePassword = "Password123!"
-	toFollowUsername   = "tofollow"
-	toFollowEmail      = "tofollow@example.com"
-	toFollowPassword   = "Password123!"
-	toDeleteUsername   = "todelete"
-	toDeleteEmail      = "todelete@example.com"
-	toDeletePassword   = "Password123!"
+	adminUsername    = "admin"
+	adminEmail       = "admin@example.com"
+	adminPassword    = "Password123!"
+	toChangeUsername = "tochange"
+	toChangeEmail    = "tochange@example.com"
+	changeNameEmail  = "changename@example.com"
+	toFollowUsername = "tofollow"
+	toFollowEmail    = "tofollow@example.com"
+	toDeleteUsername = "todelete"
+	toDeleteEmail    = "todelete@example.com"
 )
 
 type testEnv struct {
@@ -197,12 +194,12 @@ func authContext(ctx context.Context, accessToken string) context.Context {
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-func login(ctx context.Context, t *testing.T, client userservice.UserServiceClient, email, password string) *userservice.LoginResponse {
+func login(ctx context.Context, t *testing.T, client userservice.UserServiceClient, email string) *userservice.LoginResponse {
 	t.Helper()
 
 	resp, err := client.Login(ctx, &userservice.LoginRequest{
 		Email:    email,
-		Password: password,
+		Password: adminPassword,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.AccessToken)
@@ -219,13 +216,18 @@ func logout(ctx context.Context, t *testing.T, client userservice.UserServiceCli
 	require.True(t, resp.Success)
 }
 
-func init() {
-	if err := gofakeit.Seed(0); err != nil {
-		panic(err)
-	}
+var seedFakeDataOnce sync.Once
+
+func seedFakeData() {
+	seedFakeDataOnce.Do(func() {
+		if err := gofakeit.Seed(0); err != nil {
+			panic(err)
+		}
+	})
 }
 
 func validUsername() string {
+	seedFakeData()
 	starters := "abcdefghijklmnopqrstuvwxyz0123456789"
 	chars := "abcdefghijklmnopqrstuvwxyz0123456789_-"
 	length := rand.Intn(13) + 3
@@ -250,6 +252,7 @@ func validPassword() string {
 }
 
 func fakeRegisterRequest() (string, string, string) {
+	seedFakeData()
 	return validUsername(), gofakeit.Email(), validPassword()
 }
 
@@ -258,6 +261,7 @@ func fakeRefreshToken() string {
 }
 
 func fakeAccessToken() string {
+	seedFakeData()
 	claims := jwt.MapClaims{
 		"userId":  gofakeit.Int64(),
 		"tokenId": uuid.NewString(),

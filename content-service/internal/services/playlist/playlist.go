@@ -55,7 +55,7 @@ func (s *Service) GetOne(ctx context.Context, currentUserID int64, username, cha
 	return playlist, nil
 }
 
-func (s *Service) GetMany(ctx context.Context, userID int64, currentUserID int64, take int, lastID int64) ([]*models.PlaylistWithSavedModel, error) {
+func (s *Service) GetMany(ctx context.Context, userID, currentUserID int64, take int, lastID int64) ([]*models.PlaylistWithSavedModel, error) {
 	playlists, err := s.repo.GetMany(ctx, userID, currentUserID, take, lastID)
 	if err != nil {
 		return nil, fmt.Errorf("PlaylistService.GetMany: %w", err)

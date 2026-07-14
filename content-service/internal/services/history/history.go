@@ -8,7 +8,7 @@ import (
 )
 
 type Repo interface {
-	Get(ctx context.Context, currentUserID int64, take int64) ([]*models.ListeningHistoryModel, error)
+	Get(ctx context.Context, currentUserID, take int64) ([]*models.ListeningHistoryModel, error)
 	Add(ctx context.Context, currentUserID, trackID int64) error
 	Clear(ctx context.Context, currentUserID int64) error
 }
@@ -29,7 +29,7 @@ func New(repo Repo, trackService TrackService) *Service {
 	}
 }
 
-func (s *Service) Get(ctx context.Context, currentUserID int64, take int64) ([]*models.ListeningHistoryModel, error) {
+func (s *Service) Get(ctx context.Context, currentUserID, take int64) ([]*models.ListeningHistoryModel, error) {
 	history, err := s.repo.Get(ctx, currentUserID, take)
 	if err != nil {
 		return nil, fmt.Errorf("HistoryService.Get: %w", err)

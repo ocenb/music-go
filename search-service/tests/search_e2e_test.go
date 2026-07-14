@@ -13,6 +13,8 @@ import (
 )
 
 func TestSearchUsers(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 
@@ -63,6 +65,8 @@ func TestSearchUsers(t *testing.T) {
 }
 
 func TestSearchAlbums(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 
@@ -113,6 +117,8 @@ func TestSearchAlbums(t *testing.T) {
 }
 
 func TestSearchTracks(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 

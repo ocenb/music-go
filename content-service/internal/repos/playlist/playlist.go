@@ -21,7 +21,7 @@ func New(tm transactor.Querier) *Repo {
 	return &Repo{tm: tm}
 }
 
-func (r *Repo) GetByID(ctx context.Context, playlistID int64, currentUserID int64) (*models.PlaylistWithSavedModel, error) {
+func (r *Repo) GetByID(ctx context.Context, playlistID, currentUserID int64) (*models.PlaylistWithSavedModel, error) {
 	q := r.tm.GetQueryEngine(ctx)
 
 	query := `

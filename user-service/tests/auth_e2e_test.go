@@ -13,6 +13,8 @@ import (
 )
 
 func TestAuthE2E(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -56,7 +58,7 @@ func TestAuthE2E(t *testing.T) {
 
 	t.Run("Login", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			resp := login(ctx, t, client, adminEmail, adminPassword)
+			resp := login(ctx, t, client, adminEmail)
 			require.Equal(t, adminUsername, resp.User.Username)
 		})
 
@@ -72,14 +74,14 @@ func TestAuthE2E(t *testing.T) {
 
 	t.Run("Logout", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			resp := login(ctx, t, client, adminEmail, adminPassword)
+			resp := login(ctx, t, client, adminEmail)
 			logout(ctx, t, client, resp.AccessToken)
 		})
 	})
 
 	t.Run("Refresh", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			loginResp := login(ctx, t, client, adminEmail, adminPassword)
+			loginResp := login(ctx, t, client, adminEmail)
 
 			refreshResp, err := client.Refresh(ctx, &userservice.RefreshRequest{
 				RefreshToken: loginResp.RefreshToken,
@@ -103,7 +105,7 @@ func TestAuthE2E(t *testing.T) {
 
 	t.Run("CheckAuth", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			loginResp := login(ctx, t, client, adminEmail, adminPassword)
+			loginResp := login(ctx, t, client, adminEmail)
 
 			resp, err := client.CheckAuth(authContext(ctx, loginResp.AccessToken), &emptypb.Empty{})
 			require.NoError(t, err)

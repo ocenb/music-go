@@ -21,7 +21,7 @@ func New(tm transactor.Querier) *Repo {
 	return &Repo{tm: tm}
 }
 
-func (r *Repo) GetByID(ctx context.Context, trackID int64, currentUserID int64) (*models.TrackWithLikedModel, error) {
+func (r *Repo) GetByID(ctx context.Context, trackID, currentUserID int64) (*models.TrackWithLikedModel, error) {
 	q := r.tm.GetQueryEngine(ctx)
 
 	query := `

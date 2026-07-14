@@ -18,25 +18,42 @@ formatters:
 
 linters:
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
     - bodyclose
+    - canonicalheader
+    - copyloopvar
+    - depguard
     - dupl
+    - durationcheck
     - errcheck
     - errname
+    - errorlint
     - exhaustive
     - exhaustruct
+    - exptostd
+    - fatcontext
     - forbidigo
     - funcorder
+    - gocheckcompilerdirectives
+    - gochecknoinits
     - gocognit
     - goconst
     - gocritic
     - godot
     - gosec
     - govet
+    - iface
     - ineffassign
     - intrange
+    - makezero
+    - mirror
     - mnd
     - modernize
     - musttag
+    - nilerr
+    - nilnesserr
     - nilnil
     - noctx
     - nolintlint
@@ -44,15 +61,40 @@ linters:
     - nosprintfhostport
     - paralleltest
     - perfsprint
+    - predeclared
+    - reassign
+    - recvcheck
     - revive
     - sloglint
+    - sqlclosecheck
     - staticcheck
     - testifylint
     - testpackage
+    - tparallel
     - unconvert
+    - unparam
     - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
 
   settings:
+    depguard:
+      rules:
+        "non-test files":
+          files:
+            - "!$test"
+          deny:
+            - pkg: math/rand$
+              desc: Use math/rand/v2 instead
+        "non-main files":
+          files:
+            - "!**/main.go"
+          deny:
+            - pkg: log$
+              desc: Use log/slog instead
+
     errcheck:
       # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
       # Such cases aren't reported by default.
@@ -83,6 +125,26 @@ linters:
       # Minimal code complexity to report.
       # Default: 30
       min-complexity: 50
+
+    gocritic:
+      # Default: false
+      enable-all: false
+      enabled-checks:
+        - httpNoBody
+        - importShadow
+        - nilValReturn
+        - octalLiteral
+        - paramTypeCombine
+        - regexpSimplify
+      # disabled-checks:
+      #   # Detects params that incur excessive amount of copying.
+      #   - hugeParam
+      #   # Detects loops that copy big objects during each iteration.
+      #   - rangeValCopy
+      #   # Detects suspicious/confusing re-assignments.
+      #   - sloppyReassign
+      #   # Detects unnamed results that may benefit from names.
+      #   - unnamedResult
 
     govet:
       # Enable all analyzers.
@@ -156,6 +218,9 @@ linters:
         # https://staticcheck.dev/docs/checks/#QF1008
         - -QF1008
 
+    usetesting:
+      os-temp-dir: true
+
   exclusions:
     warn-unused: false
 
@@ -181,14 +246,6 @@ linters:
         source: "// ?(nolint|TODO)"
         linters: [revive, staticcheck]
 
-      - path: 'repo\.go'
-        linters:
-          - goconst
-
-      - path: 'repo_test\.go'
-        linters:
-          - paralleltest
-
       - path: '_test\.go'
         linters:
           - bodyclose
@@ -200,6 +257,22 @@ linters:
           - forbidigo
 
       - path: "tests/"
+        text: "missing the call to method parallel in the test run"
+        linters: [paralleltest]
+
+      - path: "tests/"
         linters:
           - forbidigo
-          - paralleltest
+          - tparallel
+
+      - path: 'repo_test\.go'
+        text: "missing the call to method parallel in the test run"
+        linters: [paralleltest]
+
+      - path: 'repo_test\.go'
+        linters:
+          - tparallel
+
+      - path: 'repo\.go'
+        linters:
+          - goconst

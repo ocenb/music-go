@@ -31,9 +31,9 @@ type UserService interface {
 	GetByUsername(ctx context.Context, username string) (*userservice.UserPublicModel, error)
 	ChangeUsername(ctx context.Context, userID int64, username string) (*userservice.UserPublicModel, error)
 	Delete(ctx context.Context, userID int64) error
-	CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error)
-	Follow(ctx context.Context, userID int64, targetUserID int64) error
-	Unfollow(ctx context.Context, userID int64, targetUserID int64) error
+	CheckFollow(ctx context.Context, userID, targetUserID int64) (bool, error)
+	Follow(ctx context.Context, userID, targetUserID int64) error
+	Unfollow(ctx context.Context, userID, targetUserID int64) error
 }
 
 type UserServer struct {

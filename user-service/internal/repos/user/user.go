@@ -252,7 +252,7 @@ func (r *Repo) Delete(ctx context.Context, userID int64) error {
 	return nil
 }
 
-func (r *Repo) CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error) {
+func (r *Repo) CheckFollow(ctx context.Context, userID, targetUserID int64) (bool, error) {
 	q := r.tm.GetQueryEngine(ctx)
 
 	query := `SELECT EXISTS(SELECT 1 FROM user_followers WHERE user_id = $1 AND follower_id = $2)`
@@ -265,7 +265,7 @@ func (r *Repo) CheckFollow(ctx context.Context, userID int64, targetUserID int64
 	return exists, nil
 }
 
-func (r *Repo) Follow(ctx context.Context, userID int64, targetUserID int64) error {
+func (r *Repo) Follow(ctx context.Context, userID, targetUserID int64) error {
 	q := r.tm.GetQueryEngine(ctx)
 
 	query := `INSERT INTO user_followers (user_id, follower_id) VALUES ($1, $2)`
@@ -279,7 +279,7 @@ func (r *Repo) Follow(ctx context.Context, userID int64, targetUserID int64) err
 	return nil
 }
 
-func (r *Repo) Unfollow(ctx context.Context, userID int64, targetUserID int64) error {
+func (r *Repo) Unfollow(ctx context.Context, userID, targetUserID int64) error {
 	q := r.tm.GetQueryEngine(ctx)
 
 	query := `DELETE FROM user_followers WHERE user_id = $1 AND follower_id = $2`

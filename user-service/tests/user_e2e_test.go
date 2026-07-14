@@ -13,6 +13,8 @@ import (
 )
 
 func TestUserE2E(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -21,7 +23,7 @@ func TestUserE2E(t *testing.T) {
 
 	t.Run("GetUserByUsername", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			loginResp := login(ctx, t, client, adminEmail, adminPassword)
+			loginResp := login(ctx, t, client, adminEmail)
 
 			resp, err := client.GetUserByUsername(authContext(ctx, loginResp.AccessToken), &userservice.GetUserByUsernameRequest{
 				Username: adminUsername,
@@ -31,7 +33,7 @@ func TestUserE2E(t *testing.T) {
 		})
 
 		t.Run("NotFound", func(t *testing.T) {
-			loginResp := login(ctx, t, client, adminEmail, adminPassword)
+			loginResp := login(ctx, t, client, adminEmail)
 
 			username := validUsername()
 			_, err := client.GetUserByUsername(authContext(ctx, loginResp.AccessToken), &userservice.GetUserByUsernameRequest{
@@ -44,7 +46,7 @@ func TestUserE2E(t *testing.T) {
 
 	t.Run("ChangeUsername", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			loginResp := login(ctx, t, client, changeNameEmail, changeNamePassword)
+			loginResp := login(ctx, t, client, changeNameEmail)
 			newUsername := validUsername()
 
 			changeResp, err := client.ChangeUsername(authContext(ctx, loginResp.AccessToken), &userservice.ChangeUsernameRequest{
@@ -55,7 +57,7 @@ func TestUserE2E(t *testing.T) {
 		})
 
 		t.Run("Conflict", func(t *testing.T) {
-			loginResp := login(ctx, t, client, toChangeEmail, toChangePassword)
+			loginResp := login(ctx, t, client, toChangeEmail)
 
 			_, err := client.ChangeUsername(authContext(ctx, loginResp.AccessToken), &userservice.ChangeUsernameRequest{
 				Username: adminUsername,
@@ -67,7 +69,7 @@ func TestUserE2E(t *testing.T) {
 
 	t.Run("DeleteUser", func(t *testing.T) {
 		t.Run("Success", func(t *testing.T) {
-			loginResp := login(ctx, t, client, toDeleteEmail, toDeletePassword)
+			loginResp := login(ctx, t, client, toDeleteEmail)
 
 			resp, err := client.DeleteUser(authContext(ctx, loginResp.AccessToken), &emptypb.Empty{})
 			require.NoError(t, err)
@@ -77,8 +79,8 @@ func TestUserE2E(t *testing.T) {
 
 	t.Run("Follow", func(t *testing.T) {
 		t.Run("FollowUnfollow", func(t *testing.T) {
-			login1 := login(ctx, t, client, adminEmail, adminPassword)
-			login2 := login(ctx, t, client, toFollowEmail, toFollowPassword)
+			login1 := login(ctx, t, client, adminEmail)
+			login2 := login(ctx, t, client, toFollowEmail)
 			authCtx1 := authContext(ctx, login1.AccessToken)
 
 			checkResp, err := client.CheckFollow(authCtx1, &userservice.CheckFollowRequest{

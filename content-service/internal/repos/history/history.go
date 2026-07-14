@@ -17,7 +17,7 @@ func New(tm transactor.Querier) *Repo {
 	return &Repo{tm: tm}
 }
 
-func (r *Repo) Get(ctx context.Context, currentUserID int64, take int64) ([]*models.ListeningHistoryModel, error) {
+func (r *Repo) Get(ctx context.Context, currentUserID, take int64) ([]*models.ListeningHistoryModel, error) {
 	q := r.tm.GetQueryEngine(ctx)
 
 	query := `

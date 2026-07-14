@@ -27,9 +27,9 @@ type Repo interface {
 	ChangeEmail(ctx context.Context, userID int64, email string) (*userservice.UserPrivateModel, error)
 	ChangePassword(ctx context.Context, userID int64, password string) (*userservice.UserPrivateModel, error)
 	Delete(ctx context.Context, userID int64) error
-	CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error)
-	Follow(ctx context.Context, userID int64, targetUserID int64) error
-	Unfollow(ctx context.Context, userID int64, targetUserID int64) error
+	CheckFollow(ctx context.Context, userID, targetUserID int64) (bool, error)
+	Follow(ctx context.Context, userID, targetUserID int64) error
+	Unfollow(ctx context.Context, userID, targetUserID int64) error
 }
 
 type SearchClient interface {
@@ -215,7 +215,7 @@ func (s *Service) Delete(ctx context.Context, userID int64) error {
 	return nil
 }
 
-func (s *Service) CheckFollow(ctx context.Context, userID int64, targetUserID int64) (bool, error) {
+func (s *Service) CheckFollow(ctx context.Context, userID, targetUserID int64) (bool, error) {
 	exists, err := s.repo.CheckFollow(ctx, userID, targetUserID)
 	if err != nil {
 		return false, fmt.Errorf("UserService.CheckFollow: %w", err)
@@ -223,7 +223,7 @@ func (s *Service) CheckFollow(ctx context.Context, userID int64, targetUserID in
 	return exists, nil
 }
 
-func (s *Service) Follow(ctx context.Context, userID int64, targetUserID int64) error {
+func (s *Service) Follow(ctx context.Context, userID, targetUserID int64) error {
 	exists, err := s.repo.CheckFollow(ctx, userID, targetUserID)
 	if err != nil {
 		return fmt.Errorf("UserService.Follow: %w", err)
@@ -237,7 +237,7 @@ func (s *Service) Follow(ctx context.Context, userID int64, targetUserID int64) 
 	return nil
 }
 
-func (s *Service) Unfollow(ctx context.Context, userID int64, targetUserID int64) error {
+func (s *Service) Unfollow(ctx context.Context, userID, targetUserID int64) error {
 	exists, err := s.repo.CheckFollow(ctx, userID, targetUserID)
 	if err != nil {
 		return fmt.Errorf("UserService.Unfollow: %w", err)

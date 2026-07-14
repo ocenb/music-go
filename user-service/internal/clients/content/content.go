@@ -27,7 +27,7 @@ func New(baseURL, internalSecret string, timeout time.Duration) *Client {
 func (c *Client) DeleteUserContent(ctx context.Context, userID int64) error {
 	url := fmt.Sprintf("%s/api/content/internal/users/%d", c.baseURL, userID)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create request to content service: %w", err)
 	}

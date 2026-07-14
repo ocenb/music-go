@@ -12,6 +12,8 @@ import (
 const testTimeout = 5 * time.Minute
 
 func TestEmailNotificationE2E(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 

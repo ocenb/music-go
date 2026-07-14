@@ -50,7 +50,7 @@ type PlaylistTracksService interface {
 }
 
 type HistoryService interface {
-	Get(ctx context.Context, currentUserID int64, take int64) ([]*models.ListeningHistoryModel, error)
+	Get(ctx context.Context, currentUserID, take int64) ([]*models.ListeningHistoryModel, error)
 	Add(ctx context.Context, currentUserID, trackID int64) error
 	Clear(ctx context.Context, currentUserID int64) error
 }

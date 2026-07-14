@@ -104,7 +104,7 @@ func (s *Service) GetManyPopular(ctx context.Context, currentUserID, userID int6
 	return tracks, nil
 }
 
-func (s *Service) Upload(ctx context.Context, userID int64, username, email, title, changeableID string, audioFile *multipart.FileHeader, imageFile *multipart.FileHeader) (*models.TrackModel, error) {
+func (s *Service) Upload(ctx context.Context, userID int64, username, email, title, changeableID string, audioFile, imageFile *multipart.FileHeader) (*models.TrackModel, error) {
 	if err := s.validateTrackTitle(ctx, userID, title); err != nil {
 		return nil, err
 	}
